@@ -7,7 +7,7 @@ const app = express();
 const PORT = 5060;
 const db = new sqlite3.Database('./hr_database.db');
 
-// --- EMAIL CONFIGURATION ---
+// --- EMAIL CONFIGURATION (REPLACE WITH YOUR GMAIL & APP PASSWORD) ---
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
@@ -46,7 +46,7 @@ app.post('/api/login', (req, res) => {
     });
 });
 
-// --- ATTENDANCE ---
+// --- ATTENDANCE & FILTERS ---
 app.post('/api/attendance', (req, res) => {
     const { userId, type, lat, lon } = req.body;
     const pkTime = getPKTime();
@@ -60,7 +60,12 @@ app.post('/api/attendance', (req, res) => {
 });
 
 app.get('/api/admin/records', (req, res) => {
-    db.all("SELECT a.*, u.full_name as username FROM attendance a JOIN users u ON a.user_id = u.id ORDER BY a.id DESC", (err, rows) => res.json(rows || []));
+    const { month, userId } = req.query;
+    let query = "SELECT a.*, u.full_name as username FROM attendance a JOIN users u ON a.user_id = u.id WHERE 1=1";
+    let params = [];
+    if (month) { query += " AND a.month = ?"; params.push(month); }
+    if (userId) { query += " AND a.user_id = ?"; params.push(userId); }
+    db.all(query + " ORDER BY a.id DESC", params, (err, rows) => res.json(rows || []));
 });
 
 app.post('/api/admin/attendance/action', (req, res) => {
@@ -70,8 +75,8 @@ app.post('/api/admin/attendance/action', (req, res) => {
     } else if (action === 'edit') {
         db.run("UPDATE attendance SET type = ?, time = ? WHERE id = ?", [type, time, id], () => res.json({success: true}));
     } else if (action === 'manual') {
-        const month = new Date(time).toLocaleString("en-US", {month:'long'});
-        db.run("INSERT INTO attendance (user_id, type, lat, lon, time, month) VALUES (?, ?, 0, 0, ?, ?)", [userId, type, time, month], () => res.json({success: true}));
+        const m = new Date(time).toLocaleString("en-US", {month:'long'});
+        db.run("INSERT INTO attendance (user_id, type, lat, lon, time, month) VALUES (?, ?, 0, 0, ?, ?)", [userId, type, time, m], () => res.json({success: true}));
     }
 });
 
@@ -95,7 +100,7 @@ app.post('/api/admin/leaves/action', (req, res) => {
             if (status === 'Approved' && type === 'Annual Leave') {
                 db.run("UPDATE users SET leave_balance = leave_balance - ? WHERE id = ?", [days, userId]);
             }
-            sendMail(email, `Leave ${status}`, `<p>Your ${type} has been ${status}.</p>`);
+            sendMail(email, `Leave ${status}`, `<p>Your ${type} for ${days} days has been ${status}.</p>`);
             res.json({success: true});
         });
     }
@@ -116,6 +121,13 @@ app.post('/api/admin/user/save', (req, res) => {
             res.json({success: true});
         });
     }
+});
+
+app.post('/api/admin/user/import', (req, res) => {
+    const users = req.body;
+    const stmt = db.prepare("INSERT OR IGNORE INTO users (username, password, full_name, email, role, leave_balance) VALUES (?, ?, ?, ?, ?, ?)");
+    users.forEach(u => stmt.run(u.username, u.password, u.full_name, u.email, u.role, u.leave_balance));
+    stmt.finalize(() => res.json({success: true}));
 });
 
 app.delete('/api/admin/user/:id', (req, res) => {
