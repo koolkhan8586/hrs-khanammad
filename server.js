@@ -10,7 +10,7 @@ const db = new sqlite3.Database('./hr_database.db');
 // --- EMAIL CONFIGURATION ---
 const transporter = nodemailer.createTransport({
     service: 'gmail',
-    auth: { user: 'hr@uolcc.edu.pk', pass: 'vlik dekw mwyn bnhh' }
+    auth: { user: 'YOUR_EMAIL@gmail.com', pass: 'YOUR_APP_PASSWORD' }
 });
 
 function getPKTime() {
@@ -44,7 +44,7 @@ app.post('/api/login', (req, res) => {
     });
 });
 
-// User Save Route (MUST MATCH FRONTEND)
+// FIXED SAVE ROUTE
 app.post('/api/admin/user/save', (req, res) => {
     const { id, username, password, full_name, email, role, leave_balance } = req.body;
     if (id && id !== "") {
@@ -61,9 +61,17 @@ app.post('/api/admin/user/save', (req, res) => {
     } else {
         db.run("INSERT INTO users (username, password, full_name, email, role, leave_balance) VALUES (?, ?, ?, ?, ?, ?)", [username, password, full_name, email, role, leave_balance], (err) => {
             if (err) return res.status(500).json({ error: "Exists" });
+            sendMail(email, "Welcome to LSAF", `<p>User: ${username} / Pass: ${password}</p>`);
             res.json({ success: true });
         });
     }
+});
+
+app.post('/api/admin/user/import', (req, res) => {
+    const users = req.body;
+    const stmt = db.prepare("INSERT OR IGNORE INTO users (username, password, full_name, email, role, leave_balance) VALUES (?, ?, ?, ?, ?, ?)");
+    users.forEach(u => stmt.run(u.username, u.password, u.full_name, u.email, u.role, u.leave_balance));
+    stmt.finalize(() => res.json({success: true}));
 });
 
 app.get('/api/admin/users', (req, res) => {
@@ -74,16 +82,7 @@ app.delete('/api/admin/user/:id', (req, res) => {
     db.run("DELETE FROM users WHERE id = ?", [req.params.id], () => res.json({ success: true }));
 });
 
-// Attendance Logs
-app.get('/api/admin/records', (req, res) => {
-    const { month, userId } = req.query;
-    let query = "SELECT a.*, u.full_name as username FROM attendance a JOIN users u ON a.user_id = u.id WHERE 1=1";
-    let params = [];
-    if (month) { query += " AND a.month = ?"; params.push(month); }
-    if (userId) { query += " AND a.user_id = ?"; params.push(userId); }
-    db.all(query + " ORDER BY a.id DESC", params, (err, rows) => res.json(rows || []));
-});
-
+// RESTORED MANUAL ATTENDANCE & ACTIONS
 app.post('/api/admin/attendance/action', (req, res) => {
     const { id, userId, type, time, action } = req.body;
     if (action === 'delete') {
@@ -96,6 +95,15 @@ app.post('/api/admin/attendance/action', (req, res) => {
     }
 });
 
+app.get('/api/admin/records', (req, res) => {
+    const { month, userId } = req.query;
+    let query = "SELECT a.*, u.full_name as username FROM attendance a JOIN users u ON a.user_id = u.id WHERE 1=1";
+    let params = [];
+    if (month) { query += " AND a.month = ?"; params.push(month); }
+    if (userId) { query += " AND a.user_id = ?"; params.push(userId); }
+    db.all(query + " ORDER BY a.id DESC", params, (err, rows) => res.json(rows || []));
+});
+
 app.post('/api/attendance', (req, res) => {
     const { userId, type, lat, lon } = req.body;
     const pkTime = getPKTime();
@@ -103,7 +111,7 @@ app.post('/api/attendance', (req, res) => {
     db.run("INSERT INTO attendance (user_id, type, lat, lon, time, month) VALUES (?, ?, ?, ?, ?, ?)", [userId, type, lat, lon, pkTime, month], () => res.json({ success: true, time: pkTime }));
 });
 
-// Leaves
+// LEAVES Hub
 app.get('/api/admin/leaves', (req, res) => {
     db.all("SELECT l.*, u.full_name, u.email FROM leaves l JOIN users u ON l.user_id = u.id ORDER BY l.id DESC", (err, rows) => res.json(rows || []));
 });
@@ -123,4 +131,4 @@ app.post('/api/admin/leaves/action', (req, res) => {
     });
 });
 
-app.listen(PORT, '127.0.0.1', () => console.log(`Server running on 5060`));
+app.listen(PORT, '127.0.0.1', () => console.log(`LSAF HR Portal Live on Port 5060`));
