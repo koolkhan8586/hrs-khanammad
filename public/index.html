@@ -27,7 +27,7 @@
 
     <div id="login-screen" style="position:fixed; inset:0; background:#fff; z-index:20000; display:flex; align-items:center; justify-content:center;">
         <div class="card" style="width:320px; text-align:center;">
-            <img src="logo.png" style="max-height:70px; margin-bottom:15px;">
+            <img src="logo.png" style="max-height:70px; margin-bottom:15px;" onerror="this.src='https://placehold.co/70x70?text=LSAF'">
             <input type="text" id="l_un" placeholder="Username">
             <input type="password" id="l_pw" placeholder="Password">
             <button class="btn btn-primary" style="width:100%" onclick="login()">Sign In</button>
@@ -57,7 +57,7 @@
     </div></div>
 
     <div class="sidebar" id="sidebar" style="display:none;">
-        <div class="logo-box"><img src="logo.png" style="max-height:70px;"></div>
+        <div class="logo-box"><img src="logo.png" style="max-height:70px;" onerror="this.style.display='none'"></div>
         <div class="nav-item active" onclick="showSection('dashboard')"><i class="fas fa-home"></i> Dashboard</div>
         <div class="nav-item" onclick="showSection('attendance')"><i class="fas fa-clock"></i> Attendance</div>
         <div class="nav-item" onclick="showSection('leave')"><i class="fas fa-calendar-day"></i> Leaves Hub</div>
@@ -76,7 +76,6 @@
                 <div class="card"><h3>Recent Activity</h3><table id="dashAttTable"><tbody></tbody></table></div>
                 <div id="dashMap" style="height:300px; border-radius:15px;"></div>
             </div>
-            <div class="card" id="admin-leave-requests" style="display:none;"><h3>Pending Leaves</h3><table id="dashLeaveTable"><tbody></tbody></table></div>
         </div>
 
         <div id="attendance-section" class="section" style="display:none;">
@@ -87,11 +86,10 @@
                         <select id="f_user_sel" style="width:140px;"><option value="">All Staff</option></select>
                         <select id="f_month_sel" style="width:110px;"><option value="">All Months</option><option>January</option><option>February</option></select>
                         <button class="btn btn-primary" onclick="loadAttendance()">Filter</button>
-                        <button class="btn btn-primary" id="btn-manual" onclick="openManualAtt()" style="display:none;">Manual Entry</button>
-                        <button class="btn" onclick="exportCSV('attTable')">CSV</button>
+                        <button class="btn btn-primary" onclick="openManualAtt()">Manual Entry</button>
                     </div>
                 </div>
-                <table id="attTable"><thead><tr><th>Name</th><th>Type</th><th>Time</th><th>Location</th><th>Admin</th></tr></thead><tbody></tbody></table>
+                <table id="attTable"><thead><tr><th>Name</th><th>Type</th><th>Time</th><th>Action</th></tr></thead><tbody></tbody></table>
             </div>
         </div>
 
@@ -100,18 +98,18 @@
                 <h3>My Balance: <span id="leave-bal-text">0</span> Days</h3>
                 <label><input type="checkbox" id="lv_is_half" onchange="toggleHalfDay()"> Half Day</label>
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;"><input type="date" id="lv_start" onchange="calcLeaveDays()"><input type="date" id="lv_end" onchange="calcLeaveDays()"></div>
-                <p>Days: <b id="lv_count">0</b> | Type: <select id="lv_type" style="width:auto"><option>Annual Leave</option><option>Without Pay Leave</option></select></p>
+                <p>Days: <b id="lv_count">0</b> | <select id="lv_type" style="width:auto"><option>Annual Leave</option><option>Without Pay Leave</option></select></p>
                 <textarea id="lv_reason" placeholder="Reason"></textarea>
                 <button class="btn btn-primary" onclick="applyLeave()">Submit</button>
             </div>
-            <div class="card" id="admin-leave-manage" style="display:none;"><h3>Leave Management</h3><table id="leaveAdminTable"><thead><tr><th>Name</th><th>Start</th><th>End</th><th>Status</th><th>Action</th></tr></thead><tbody></tbody></table></div>
+            <div class="card" id="admin-leave-manage" style="display:none;"><h3>Admin: Leaves</h3><table id="leaveAdminTable"><thead><tr><th>Name</th><th>Start</th><th>End</th><th>Action</th></tr></thead><tbody></tbody></table></div>
         </div>
 
         <div id="user-manage-section" class="section" style="display:none;">
             <div class="card">
                 <div style="display:flex; justify-content:space-between;">
                     <h3>Employee Directory</h3>
-                    <div style="display:flex; gap:5px;"><input type="file" id="csv_import" style="display:none" onchange="importCSV(event)"><button class="btn" onclick="document.getElementById('csv_import').click()">Import CSV</button><button class="btn btn-primary" onclick="openUserForm()">+ Add New</button></div>
+                    <button class="btn btn-primary" onclick="openUserForm()">+ Add New Employee</button>
                 </div>
                 <table id="userTable"><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Action</th></tr></thead><tbody></tbody></table>
             </div>
@@ -144,7 +142,6 @@
             if(currentUser.role === 'admin') {
                 document.getElementById('admin-nav').style.display='block';
                 document.getElementById('admin-leave-manage').style.display='block';
-                document.getElementById('btn-manual').style.display='inline-block';
                 loadFilterUsers();
             }
             loadDashboard();
@@ -176,11 +173,7 @@
         async function loadAttendance() {
             const res = await fetch(`/api/admin/records?userId=${f_user_sel.value}&month=${f_month_sel.value}`);
             const data = await res.json();
-            document.querySelector('#attTable tbody').innerHTML = data.map(r => `
-                <tr><td>${r.username}</td><td>${r.type}</td><td>${r.time}</td>
-                <td><a href="https://google.com/maps?q=${r.lat},${r.lon}" target="_blank">View</a></td>
-                <td><button onclick="editAtt(${r.id}, '${r.type}', '${r.time}')">Edit</button> <button onclick="deleteAtt(${r.id})">Del</button></td></tr>
-            `).join('');
+            document.querySelector('#attTable tbody').innerHTML = data.map(r => `<tr><td>${r.username}</td><td>${r.type}</td><td>${r.time}</td><td><button onclick="editAtt(${r.id}, '${r.type}', '${r.time}')">Edit</button> <button onclick="deleteAtt(${r.id})">Del</button></td></tr>`).join('');
         }
 
         async function loadFilterUsers() {
@@ -204,15 +197,14 @@
 
         async function applyLeave() {
             const days = parseFloat(document.getElementById('lv_count').innerText);
-            await fetch('/api/leaves/apply', {method:'POST', headers:{'Content-Type':'application/json'}, 
-            body:JSON.stringify({userId:currentUser.id, type:lv_type.value, start_date:lv_start.value, end_date:lv_end.value, days, reason:lv_reason.value})});
+            await fetch('/api/leaves/apply', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId:currentUser.id, type:lv_type.value, start_date:lv_start.value, end_date:lv_end.value, days, reason:lv_reason.value})});
             alert("Applied");
         }
 
         async function loadAdminLeaves() {
             const res = await fetch('/api/admin/leaves');
             const data = await res.json();
-            document.querySelector('#leaveAdminTable tbody').innerHTML = data.map(l => `<tr><td>${l.full_name}</td><td>${l.start_date}</td><td>${l.end_date}</td><td>${l.status}</td><td><button onclick="approveLeave(${l.id}, ${l.user_id}, ${l.days}, '${l.type}', '${l.email}', 'Approved')">Approve</button></td></tr>`).join('');
+            document.querySelector('#leaveAdminTable tbody').innerHTML = data.map(l => `<tr><td>${l.full_name}</td><td>${l.start_date}</td><td>${l.end_date}</td><td><button onclick="approveLeave(${l.id}, ${l.user_id}, ${l.days}, '${l.type}', '${l.email}', 'Approved')">Approve</button></td></tr>`).join('');
         }
 
         async function approveLeave(id, userId, days, type, email, status) {
@@ -226,12 +218,9 @@
             document.querySelector('#userTable tbody').innerHTML = data.map(u => `<tr><td>${u.full_name}</td><td>${u.email}</td><td>${u.role}</td><td><button onclick='editUser(${JSON.stringify(u)})'>Edit</button> <button onclick='deleteUser(${u.id})'>Del</button></td></tr>`).join('');
         }
 
-        function openUserForm() { edit_u_id.value = ''; uModalTitle.innerText = "Add Employee"; document.getElementById('userModal').style.display='flex'; }
-
         function editUser(u) {
             edit_u_id.value = u.id; u_fn.value = u.full_name; u_em.value = u.email; u_un.value = u.username;
             u_role.value = u.role; u_bal.value = u.leave_balance;
-            uModalTitle.innerText = "Edit Employee";
             document.getElementById('userModal').style.display='flex';
         }
 
@@ -241,30 +230,14 @@
             if(res.ok) { closeModal('userModal'); loadUsers(); }
         }
 
-        function openManualAtt() { 
-            fetch('/api/admin/users').then(r => r.json()).then(data => { 
-                m_user_sel.innerHTML = data.map(u => `<option value="${u.id}">${u.full_name}</option>`).join(''); 
-                document.getElementById('manualAttModal').style.display='flex'; 
-            }); 
-        }
-        
-        async function submitManualAtt() {
-            await fetch('/api/admin/attendance/action', {method:'POST', headers:{'Content-Type':'application/json'}, 
-            body:JSON.stringify({userId:m_user_sel.value, type:m_type.value, time:m_time.value.replace('T', ' '), action:'manual'})});
-            closeModal('manualAttModal'); loadAttendance();
-        }
-
+        function openUserForm() { edit_u_id.value = ''; document.getElementById('userModal').style.display='flex'; }
+        function openManualAtt() { fetch('/api/admin/users').then(r => r.json()).then(data => { m_user_sel.innerHTML = data.map(u => `<option value="${u.id}">${u.full_name}</option>`).join(''); document.getElementById('manualAttModal').style.display='flex'; }); }
         function closeModal(id) { document.getElementById(id).style.display='none'; }
         
         async function handleClock(type) {
             navigator.geolocation.getCurrentPosition(pos => {
                 fetch('/api/attendance', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId:currentUser.id, type, lat:pos.coords.latitude, lon:pos.coords.longitude})}).then(() => { alert("Marked"); loadDashboard(); });
             });
-        }
-        function exportCSV(id) {
-            const rows = Array.from(document.getElementById(id).rows).map(r => Array.from(r.cells).map(c => c.innerText).join(","));
-            const a = document.createElement('a'); a.href = window.URL.createObjectURL(new Blob([rows.join("\n")], {type:'text/csv'}));
-            a.download = 'LSAF_Report.csv'; a.click();
         }
         function logout() { localStorage.clear(); location.reload(); }
     </script>
