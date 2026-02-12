@@ -10,7 +10,7 @@ const db = new sqlite3.Database('./hr_database.db');
 // --- EMAIL CONFIGURATION ---
 const transporter = nodemailer.createTransport({
     service: 'gmail',
-    auth: { user: 'hr@uolcc.edu.pk, pass: 'vlik dekw mwyn bnhh' }
+    auth: { user: 'hr@uolcc.edu.pk', pass: 'vlik dekw mwyn bnhh' }
 });
 
 function getPKTime() {
@@ -44,7 +44,37 @@ app.post('/api/login', (req, res) => {
     });
 });
 
-// Attendance Log with Filters
+// User Save (Fixed 404 Route)
+app.post('/api/admin/user/save', (req, res) => {
+    const { id, username, password, full_name, email, role, leave_balance } = req.body;
+    if (id && id !== "") {
+        let q = "UPDATE users SET username=?, full_name=?, email=?, role=?, leave_balance=? WHERE id=?";
+        let p = [username, full_name, email, role, leave_balance, id];
+        if (password && password.trim() !== "") {
+            q = "UPDATE users SET username=?, full_name=?, email=?, role=?, leave_balance=?, password=? WHERE id=?";
+            p = [username, full_name, email, role, leave_balance, password, id];
+        }
+        db.run(q, p, (err) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ success: true });
+        });
+    } else {
+        db.run("INSERT INTO users (username, password, full_name, email, role, leave_balance) VALUES (?, ?, ?, ?, ?, ?)", [username, password, full_name, email, role, leave_balance], (err) => {
+            if (err) return res.status(500).json({ error: "Exists" });
+            res.json({ success: true });
+        });
+    }
+});
+
+app.get('/api/admin/users', (req, res) => {
+    db.all("SELECT * FROM users", (err, rows) => res.json(rows || []));
+});
+
+app.delete('/api/admin/user/:id', (req, res) => {
+    db.run("DELETE FROM users WHERE id = ?", [req.params.id], () => res.json({ success: true }));
+});
+
+// Attendance & Manual Action
 app.get('/api/admin/records', (req, res) => {
     const { month, userId } = req.query;
     let query = "SELECT a.*, u.full_name as username FROM attendance a JOIN users u ON a.user_id = u.id WHERE 1=1";
@@ -54,7 +84,6 @@ app.get('/api/admin/records', (req, res) => {
     db.all(query + " ORDER BY a.id DESC", params, (err, rows) => res.json(rows || []));
 });
 
-// Admin Manual Mark / Edit / Delete Attendance
 app.post('/api/admin/attendance/action', (req, res) => {
     const { id, userId, type, time, action } = req.body;
     if (action === 'delete') {
@@ -67,7 +96,6 @@ app.post('/api/admin/attendance/action', (req, res) => {
     }
 });
 
-// Standard Attendance Mark
 app.post('/api/attendance', (req, res) => {
     const { userId, type, lat, lon } = req.body;
     const pkTime = getPKTime();
@@ -91,40 +119,8 @@ app.post('/api/admin/leaves/action', (req, res) => {
         if (status === 'Approved' && type === 'Annual Leave') {
             db.run("UPDATE users SET leave_balance = leave_balance - ? WHERE id = ?", [days, userId]);
         }
-        sendMail(email, `Leave ${status}`, `<p>Your ${type} has been ${status}.</p>`);
         res.json({success: true});
     });
 });
 
-// User Management (Fixed Save)
-app.get('/api/admin/users', (req, res) => {
-    db.all("SELECT * FROM users", (err, rows) => res.json(rows || []));
-});
-
-app.post('/api/admin/user/save', (req, res) => {
-    const { id, username, password, full_name, email, role, leave_balance } = req.body;
-    if (id && id !== "") {
-        let q = "UPDATE users SET username=?, full_name=?, email=?, role=?, leave_balance=? WHERE id=?";
-        let p = [username, full_name, email, role, leave_balance, id];
-        if (password && password.trim() !== "") {
-            q = "UPDATE users SET username=?, full_name=?, email=?, role=?, leave_balance=?, password=? WHERE id=?";
-            p = [username, full_name, email, role, leave_balance, password, id];
-        }
-        db.run(q, p, () => res.json({success: true}));
-    } else {
-        db.run("INSERT INTO users (username, password, full_name, email, role, leave_balance) VALUES (?, ?, ?, ?, ?, ?)", [username, password, full_name, email, role, leave_balance], () => res.json({success: true}));
-    }
-});
-
-app.post('/api/admin/user/import', (req, res) => {
-    const users = req.body;
-    const stmt = db.prepare("INSERT OR IGNORE INTO users (username, password, full_name, email, role, leave_balance) VALUES (?, ?, ?, ?, ?, ?)");
-    users.forEach(u => stmt.run(u.username, u.password, u.full_name, u.email, u.role, u.leave_balance));
-    stmt.finalize(() => res.json({success: true}));
-});
-
-app.delete('/api/admin/user/:id', (req, res) => {
-    db.run("DELETE FROM users WHERE id = ?", [req.params.id], () => res.json({success: true}));
-});
-
-app.listen(PORT, '127.0.0.1', () => console.log(`Server running on 5060`));
+app.listen(PORT, '127.0.0.1', () => console.log(`LSAF Server Active on 5060`));
