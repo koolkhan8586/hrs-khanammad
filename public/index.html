@@ -9,24 +9,23 @@
         :root { --primary: #2c3e50; --success: #27ae60; --danger: #e74c3c; --blue: #3498db; }
         body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #f0f2f5; }
         .nav { display: none; background: var(--primary); overflow-x: auto; white-space: nowrap; }
-        .nav button { color: white; background: none; border: none; padding: 15px; cursor: pointer; }
+        .nav button { color: white; background: none; border: none; padding: 15px; cursor: pointer; font-size: 14px; }
         .container { padding: 15px; max-width: 900px; margin: auto; }
         .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
         .btn { color: white; padding: 12px; border: none; border-radius: 5px; width: 100%; cursor: pointer; font-size: 16px; margin-top: 5px; font-weight: bold; }
         .btn-success { background: var(--success); }
         .btn-blue { background: var(--blue); }
-        .btn-danger { background: var(--danger); }
         input, select, textarea { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
         table { width: 100%; border-collapse: collapse; font-size: 13px; }
         th, td { padding: 12px; border-bottom: 1px solid #eee; text-align: left; }
-        .announcement-box { border-left: 5px solid var(--blue); padding-left: 15px; margin-bottom: 15px; }
+        th { background: #f8f9fa; color: #555; }
     </style>
 </head>
 <body>
 
 <div id="login-screen" class="container">
     <div class="card" style="margin-top: 50px; text-align: center;">
-        <h2>HRMS Login</h2>
+        <h2 style="color:var(--primary)">HRMS Login</h2>
         <input type="text" id="login_un" placeholder="Username">
         <input type="password" id="login_pw" placeholder="Password">
         <button class="btn btn-success" onclick="login()">Sign In</button>
@@ -36,8 +35,6 @@
 <div id="main-app" style="display:none;">
     <div class="nav" id="main-nav">
         <button onclick="showSection('attendance')">Attendance</button>
-        <button onclick="showSection('leave')">Leave/Loan</button>
-        <button onclick="showSection('announcement')">Announcements</button>
         <button id="admin-btn" style="display:none;" onclick="showSection('admin')">Admin Panel</button>
         <button onclick="logout()" style="color: #ff7675;">Logout</button>
     </div>
@@ -46,47 +43,26 @@
         <div id="attendance-section" class="section">
             <div class="card">
                 <h2 id="welcome-msg">Attendance</h2>
+                <p style="font-size: 12px; color: #666;">Timezone: Pakistan Standard Time (PKT)</p>
                 <button class="btn btn-success" onclick="handleClock('Check-In')">Clock In</button>
                 <button class="btn btn-blue" onclick="handleClock('Check-Out')">Clock Out</button>
                 <div id="map" style="height:250px; margin-top:15px; border-radius:8px;"></div>
             </div>
         </div>
 
-        <div id="leave-section" class="section" style="display:none;">
-            <div class="card">
-                <h3>Request Leave</h3>
-                <input type="date" id="l_date">
-                <textarea id="l_reason" placeholder="Reason for leave"></textarea>
-                <button class="btn btn-blue" onclick="requestLeave()">Request Leave</button>
-            </div>
-        </div>
-
-        <div id="announcement-section" class="section" style="display:none;">
-            <div class="card">
-                <h2>Recent Announcements</h2>
-                <div id="announcement-list"></div>
-            </div>
-        </div>
-
         <div id="admin-section" class="section" style="display:none;">
-            <div class="card">
-                <h3>📢 Post Announcement</h3>
-                <input type="text" id="ann_title" placeholder="Title">
-                <textarea id="ann_msg" placeholder="Message to all employees"></textarea>
-                <button class="btn btn-blue" onclick="postAnnouncement()">Post & Email All</button>
-            </div>
             <div class="card">
                 <h3>➕ Add New Employee</h3>
                 <input type="text" id="fn" placeholder="Full Name">
                 <input type="email" id="em" placeholder="Email Address">
                 <input type="text" id="un" placeholder="Username">
                 <input type="password" id="pw" placeholder="Password">
-                <button class="btn btn-success" onclick="addEmp()">Create & Send Welcome Email</button>
+                <button class="btn btn-success" onclick="addEmp()">Create Account</button>
             </div>
             <div class="card" style="overflow-x: auto;">
-                <h3>Attendance Logs</h3>
-                <table id="logTable">
-                    <thead><tr><th>Name</th><th>Action</th><th>Time</th><th>Map</th></tr></thead>
+                <h3>Attendance Logs (PKT)</h3>
+                <table>
+                    <thead><tr><th>Name</th><th>Action</th><th>Date/Time</th><th>Map</th></tr></thead>
                     <tbody id="logBody"></tbody>
                 </table>
             </div>
@@ -129,7 +105,6 @@
         document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
         document.getElementById(id + '-section').style.display = 'block';
         if(id === 'admin') loadAdminData();
-        if(id === 'announcement') loadAnnouncements();
         if(id === 'attendance') setTimeout(() => map.invalidateSize(), 200);
     }
 
@@ -139,35 +114,21 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ userId: currentUser.id, type, lat: pos.coords.latitude, lon: pos.coords.longitude })
-            }).then(() => alert(type + " recorded and email sent."));
-        });
-    }
-
-    function postAnnouncement() {
-        fetch('/api/admin/announcement', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ title: document.getElementById('ann_title').value, message: document.getElementById('ann_msg').value })
-        }).then(() => { alert("Posted!"); showSection('announcement'); });
-    }
-
-    function loadAnnouncements() {
-        fetch('/api/announcements').then(r => r.json()).then(data => {
-            document.getElementById('announcement-list').innerHTML = data.map(a => `
-                <div class="announcement-box">
-                    <h4>${a.title}</h4>
-                    <p>${a.message}</p>
-                    <small>${new Date(a.date).toLocaleString()}</small>
-                </div>
-            `).join('');
-        });
+            }).then(res => res.json()).then(data => {
+                alert(`${type} successful at ${data.time} PKT`);
+            });
+        }, () => alert("Please enable GPS."));
     }
 
     function loadAdminData() {
         fetch('/api/admin/records').then(r => r.json()).then(data => {
             document.getElementById('logBody').innerHTML = data.map(r => `
-                <tr><td>${r.username}</td><td>${r.type}</td><td>${new Date(r.time).toLocaleTimeString()}</td>
-                <td><a href="https://www.google.com/maps?q=${r.lat},${r.lon}" target="_blank">📍 View</a></td></tr>
+                <tr>
+                    <td>${r.username}</td>
+                    <td><b>${r.type}</b></td>
+                    <td>${r.time}</td>
+                    <td><a href="https://www.google.com/maps?q=${r.lat},${r.lon}" target="_blank">📍 View Map</a></td>
+                </tr>
             `).join('');
         });
     }
@@ -176,7 +137,12 @@
         fetch('/api/admin/create-employee', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username: document.getElementById('un').value, password: document.getElementById('pw').value, full_name: document.getElementById('fn').value, email: document.getElementById('em').value })
+            body: JSON.stringify({ 
+                username: document.getElementById('un').value, 
+                password: document.getElementById('pw').value, 
+                full_name: document.getElementById('fn').value, 
+                email: document.getElementById('em').value 
+            })
         }).then(res => res.json()).then(d => alert(d.message || d.error));
     }
 </script>
