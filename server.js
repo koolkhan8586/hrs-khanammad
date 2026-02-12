@@ -7,7 +7,7 @@ const app = express();
 const PORT = 5060;
 const db = new sqlite3.Database('./hr_database.db');
 
-// --- EMAIL CONFIGURATION ---
+// --- EMAIL CONFIGURATION (REPLACE WITH YOUR GMAIL & APP PASSWORD) ---
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: { user: 'hr@uolcc.edu.pk', pass: 'vlik dekw mwyn bnhh' }
@@ -34,19 +34,11 @@ db.serialize(() => {
     db.run("INSERT OR IGNORE INTO users (username, password, full_name, role, leave_balance) VALUES ('admin', 'admin123', 'System Admin', 'admin', 0)");
 });
 
-// --- API ROUTES ---
-app.post('/api/login', (req, res) => {
-    const { username, password } = req.body;
-    db.get("SELECT * FROM users WHERE username = ? AND password = ?", [username, password], (err, user) => {
-        if (!user) return res.status(401).json({ error: "Invalid Credentials" });
-        res.json(user);
-    });
-});
-
-// THE SAVE ROUTE (FIXED FOR NEW AND EDIT)
+// --- USER MANAGEMENT (THE FIX FOR 404 ERROR) ---
 app.post('/api/admin/user/save', (req, res) => {
     const { id, username, password, full_name, email, role, leave_balance } = req.body;
     if (id && id !== "") {
+        // Update existing user
         let q = "UPDATE users SET username=?, full_name=?, email=?, role=?, leave_balance=? WHERE id=?";
         let p = [username, full_name, email, role, leave_balance, id];
         if (password && password.trim() !== "") {
@@ -58,8 +50,11 @@ app.post('/api/admin/user/save', (req, res) => {
             res.json({ success: true });
         });
     } else {
-        db.run("INSERT INTO users (username, password, full_name, email, role, leave_balance) VALUES (?, ?, ?, ?, ?, ?)", [username, password, full_name, email, role, leave_balance], (err) => {
+        // Insert new user
+        db.run("INSERT INTO users (username, password, full_name, email, role, leave_balance) VALUES (?, ?, ?, ?, ?, ?)", 
+        [username, password, full_name, email, role, leave_balance], (err) => {
             if (err) return res.status(500).json({ error: "User already exists" });
+            sendMail(email, "Welcome to LSAF", `<p>Account ready.<br>User: ${username}<br>Pass: ${password}</p>`);
             res.json({ success: true });
         });
     }
@@ -69,7 +64,19 @@ app.get('/api/admin/users', (req, res) => {
     db.all("SELECT * FROM users", (err, rows) => res.json(rows || []));
 });
 
-// ATTENDANCE LOGS & MANUAL ACTIONS
+app.delete('/api/admin/user/:id', (req, res) => {
+    db.run("DELETE FROM users WHERE id = ?", [req.params.id], () => res.json({ success: true }));
+});
+
+// --- ALL OTHER MODULES (RESTORED) ---
+app.post('/api/login', (req, res) => {
+    const { username, password } = req.body;
+    db.get("SELECT * FROM users WHERE username = ? AND password = ?", [username, password], (err, user) => {
+        if (!user) return res.status(401).json({ error: "Invalid Credentials" });
+        res.json(user);
+    });
+});
+
 app.get('/api/admin/records', (req, res) => {
     const { month, userId } = req.query;
     let query = "SELECT a.*, u.full_name as username FROM attendance a JOIN users u ON a.user_id = u.id WHERE 1=1";
@@ -93,10 +100,11 @@ app.post('/api/attendance', (req, res) => {
     const { userId, type, lat, lon } = req.body;
     const pkTime = getPKTime();
     const month = new Date().toLocaleString("en-US", {month: 'long', timeZone: "Asia/Karachi"});
-    db.run("INSERT INTO attendance (user_id, type, lat, lon, time, month) VALUES (?, ?, ?, ?, ?, ?)", [userId, type, lat, lon, pkTime, month], () => res.json({ success: true, time: pkTime }));
+    db.run("INSERT INTO attendance (user_id, type, lat, lon, time, month) VALUES (?, ?, ?, ?, ?, ?)", [userId, type, lat, lon, pkTime, month], () => {
+        res.json({ success: true, time: pkTime });
+    });
 });
 
-// LEAVES Hub
 app.get('/api/admin/leaves', (req, res) => {
     db.all("SELECT l.*, u.full_name, u.email FROM leaves l JOIN users u ON l.user_id = u.id ORDER BY l.id DESC", (err, rows) => res.json(rows || []));
 });
@@ -116,4 +124,4 @@ app.post('/api/admin/leaves/action', (req, res) => {
     });
 });
 
-app.listen(PORT, '0.0.0.0', () => console.log(`LSAF Server listening on Port ${PORT}`));
+app.listen(PORT, '0.0.0.0', () => console.log(`LSAF Server Active on Port ${PORT}`));
