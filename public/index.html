@@ -18,7 +18,6 @@
         input, select, textarea { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
         table { width: 100%; border-collapse: collapse; font-size: 13px; }
         th, td { padding: 12px; border-bottom: 1px solid #eee; text-align: left; }
-        th { background: #f8f9fa; color: #555; }
     </style>
 </head>
 <body>
@@ -35,6 +34,7 @@
 <div id="main-app" style="display:none;">
     <div class="nav" id="main-nav">
         <button onclick="showSection('attendance')">Attendance</button>
+        <button onclick="showSection('payslip')">Payslip</button>
         <button id="admin-btn" style="display:none;" onclick="showSection('admin')">Admin Panel</button>
         <button onclick="logout()" style="color: #ff7675;">Logout</button>
     </div>
@@ -43,10 +43,16 @@
         <div id="attendance-section" class="section">
             <div class="card">
                 <h2 id="welcome-msg">Attendance</h2>
-                <p style="font-size: 12px; color: #666;">Timezone: Pakistan Standard Time (PKT)</p>
                 <button class="btn btn-success" onclick="handleClock('Check-In')">Clock In</button>
                 <button class="btn btn-blue" onclick="handleClock('Check-Out')">Clock Out</button>
-                <div id="map" style="height:250px; margin-top:15px; border-radius:8px;"></div>
+                <div id="map" style="height:350px; margin-top:15px; border-radius:8px;"></div>
+            </div>
+        </div>
+
+        <div id="payslip-section" class="section" style="display:none;">
+            <div class="card">
+                <h3>My Payslips</h3>
+                <div id="payslip-list">No payslips found.</div>
             </div>
         </div>
 
@@ -61,8 +67,8 @@
             </div>
             <div class="card" style="overflow-x: auto;">
                 <h3>Attendance Logs (PKT)</h3>
-                <table>
-                    <thead><tr><th>Name</th><th>Action</th><th>Date/Time</th><th>Map</th></tr></thead>
+                <table id="logTable">
+                    <thead><tr><th>Name</th><th>Action</th><th>Time</th><th>Map</th></tr></thead>
                     <tbody id="logBody"></tbody>
                 </table>
             </div>
@@ -74,6 +80,7 @@
 <script>
     let map = L.map('map').setView([0, 0], 2);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+    let marker;
     let currentUser = JSON.parse(localStorage.getItem('user'));
 
     if(currentUser) initApp();
@@ -96,6 +103,12 @@
         document.getElementById('main-nav').style.display = 'flex';
         document.getElementById('welcome-msg').innerText = "Hi, " + currentUser.full_name;
         if(currentUser.role === 'admin') document.getElementById('admin-btn').style.display = 'block';
+        
+        // AUTO SHOW CURRENT LOCATION
+        navigator.geolocation.getCurrentPosition(pos => {
+            updateMap(pos.coords.latitude, pos.coords.longitude);
+        });
+
         setTimeout(() => map.invalidateSize(), 400);
     }
 
@@ -105,30 +118,47 @@
         document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
         document.getElementById(id + '-section').style.display = 'block';
         if(id === 'admin') loadAdminData();
-        if(id === 'attendance') setTimeout(() => map.invalidateSize(), 200);
+        if(id === 'payslip') loadPayslips();
+        if(id === 'attendance') {
+            setTimeout(() => map.invalidateSize(), 200);
+            navigator.geolocation.getCurrentPosition(pos => updateMap(pos.coords.latitude, pos.coords.longitude));
+        }
+    }
+
+    function updateMap(lat, lon) {
+        map.setView([lat, lon], 16);
+        if (marker) map.removeLayer(marker);
+        marker = L.marker([lat, lon]).addTo(map).bindPopup("You are here").openPopup();
     }
 
     function handleClock(type) {
         navigator.geolocation.getCurrentPosition(pos => {
+            const { latitude, longitude } = pos.coords;
+            updateMap(latitude, longitude);
             fetch('/api/attendance', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId: currentUser.id, type, lat: pos.coords.latitude, lon: pos.coords.longitude })
-            }).then(res => res.json()).then(data => {
-                alert(`${type} successful at ${data.time} PKT`);
-            });
-        }, () => alert("Please enable GPS."));
+                body: JSON.stringify({ userId: currentUser.id, type, lat: latitude, lon: longitude })
+            }).then(res => res.json()).then(data => alert(`${type} recorded at ${data.time}`));
+        });
+    }
+
+    function loadPayslips() {
+        fetch('/api/payslips/' + currentUser.id).then(r => r.json()).then(data => {
+            if(data.length === 0) return;
+            document.getElementById('payslip-list').innerHTML = data.map(p => `
+                <div style="border:1px solid #eee; padding:10px; margin-bottom:5px; border-radius:5px;">
+                    <b>Month: ${p.month}</b><br>Net Pay: PKR ${p.net_pay}<br><small>Generated on: ${p.date}</small>
+                </div>
+            `).join('');
+        });
     }
 
     function loadAdminData() {
         fetch('/api/admin/records').then(r => r.json()).then(data => {
             document.getElementById('logBody').innerHTML = data.map(r => `
-                <tr>
-                    <td>${r.username}</td>
-                    <td><b>${r.type}</b></td>
-                    <td>${r.time}</td>
-                    <td><a href="https://www.google.com/maps?q=${r.lat},${r.lon}" target="_blank">📍 View Map</a></td>
-                </tr>
+                <tr><td>${r.username}</td><td>${r.type}</td><td>${r.time}</td>
+                <td><a href="https://www.google.com/maps?q=${r.lat},${r.lon}" target="_blank">📍 View</a></td></tr>
             `).join('');
         });
     }
@@ -137,12 +167,7 @@
         fetch('/api/admin/create-employee', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                username: document.getElementById('un').value, 
-                password: document.getElementById('pw').value, 
-                full_name: document.getElementById('fn').value, 
-                email: document.getElementById('em').value 
-            })
+            body: JSON.stringify({ username: document.getElementById('un').value, password: document.getElementById('pw').value, full_name: document.getElementById('fn').value, email: document.getElementById('em').value })
         }).then(res => res.json()).then(d => alert(d.message || d.error));
     }
 </script>
