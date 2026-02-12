@@ -12,17 +12,19 @@
         .sidebar { width: 280px; background: #fff; border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 20px 0; }
         .logo-box { padding: 0 20px 20px; text-align: center; border-bottom: 1px solid var(--border); }
         .logo-box img { max-height: 80px; }
-        .nav-item { padding: 12px 25px; cursor: pointer; display: flex; align-items: center; gap: 10px; color: var(--text); border-radius: 0 25px 25px 0; margin-right: 10px; }
+        .nav-item { padding: 12px 25px; cursor: pointer; display: flex; align-items: center; gap: 10px; color: var(--text); border-radius: 0 25px 25px 0; margin-right: 10px; transition: 0.2s; }
         .nav-item.active { background: #f0fdf4; color: var(--primary); font-weight: bold; }
         .content { flex: 1; overflow-y: auto; padding: 30px; }
         .card { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 25px; }
         .btn { padding: 10px 15px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
         .btn-primary { background: var(--primary); color: white; }
+        .btn-info { background: #3498db; color: white; }
         .btn-danger { background: #e74c3c; color: white; }
-        input, select, textarea { padding: 10px; border: 1px solid var(--border); border-radius: 8px; margin: 5px 0; width: 100%; box-sizing: border-box; }
+        input, select { padding: 10px; border: 1px solid var(--border); border-radius: 8px; margin: 5px 0; }
         table { width: 100%; border-collapse: collapse; margin-top: 15px; }
         th, td { padding: 12px; border-bottom: 1px solid var(--border); text-align: left; }
         #login-screen { position: fixed; inset: 0; background: #fff; z-index: 9999; display: flex; align-items: center; justify-content: center; }
+        #map { height: 350px; border-radius: 15px; border: 1px solid var(--border); margin-top: 15px; }
     </style>
 </head>
 <body>
@@ -30,58 +32,67 @@
     <div id="login-screen">
         <div class="card" style="width: 350px; text-align: center;">
             <img src="logo.png" style="max-height: 80px; margin-bottom: 15px;">
-            <input type="text" id="l_un" placeholder="Username">
-            <input type="password" id="l_pw" placeholder="Password">
+            <h3 style="color:var(--primary)">LSAF HR Portal</h3>
+            <input type="text" id="l_un" placeholder="Username" style="width:100%">
+            <input type="password" id="l_pw" placeholder="Password" style="width:100%">
             <button class="btn btn-primary" style="width:100%" onclick="login()">Sign In</button>
         </div>
     </div>
 
     <div class="sidebar" id="sidebar" style="display:none;">
         <div class="logo-box"><img src="logo.png"></div>
-        <div class="nav-item active" onclick="showSection('attendance')"><i class="fas fa-clock"></i> Attendance</div>
-        <div class="nav-item" onclick="showSection('requests')"><i class="fas fa-hand-holding-usd"></i> Leave & Loan</div>
+        <div class="nav-item active" onclick="showSection('dashboard')"><i class="fas fa-home"></i> Dashboard</div>
+        <div class="nav-item" onclick="showSection('attendance')"><i class="fas fa-clock"></i> Attendance Log</div>
         <div id="admin-nav" style="display:none;">
-            <div class="nav-item" onclick="showSection('admin-manage')"><i class="fas fa-tasks"></i> Admin Approvals</div>
-            <div class="nav-item" onclick="showSection('salary')"><i class="fas fa-money-bill-wave"></i> Salary Hub</div>
+            <div class="nav-item" onclick="showSection('user-manage')"><i class="fas fa-users-cog"></i> User Management</div>
         </div>
         <div class="nav-item" onclick="logout()" style="margin-top:auto; color:#e74c3c;"><i class="fas fa-power-off"></i> Logout</div>
     </div>
 
     <div class="content" id="content" style="display:none;">
-        <div id="attendance-section" class="section">
-            <div class="card" style="background: linear-gradient(135deg, #1a5d1a, #27ae60); color: #fff; text-align: center;">
-                <h1 id="clock">00:00:00</h1>
-                <button class="btn" style="background: #fff; color: var(--primary);" onclick="handleClock('Check-In')">Clock In</button>
-                <button class="btn" style="background: rgba(255,255,255,0.2); color: #fff;" onclick="handleClock('Check-Out')">Clock Out</button>
+        
+        <div id="dashboard-section" class="section">
+            <div class="card" style="background: linear-gradient(135deg, #1a5d1a, #27ae60); color: #fff; text-align: center; padding: 50px;">
+                <h1 id="clock" style="font-size: 48px; margin: 0;">00:00:00</h1>
+                <p id="date-display" style="opacity: 0.8; margin-bottom: 30px;"></p>
+                <button class="btn" style="background: #fff; color: var(--primary); font-size: 18px; padding: 15px 40px;" onclick="handleClock('Check-In')">Clock In</button>
+                <button class="btn" style="background: rgba(255,255,255,0.2); color: #fff; font-size: 18px; padding: 15px 40px;" onclick="handleClock('Check-Out')">Clock Out</button>
             </div>
-            <div id="map" style="height:300px; border-radius:15px; margin-top:20px;"></div>
+            <div id="map"></div>
         </div>
 
-        <div id="requests-section" class="section" style="display:none;">
+        <div id="attendance-section" class="section" style="display:none;">
             <div class="card">
-                <h3>Request Leave / Loan</h3>
-                <select id="req_cat" onchange="toggleReqFields()"><option value="leave">Leave Request</option><option value="loan">Loan Request</option></select>
-                <div id="leave_fields"><input type="number" id="l_days" placeholder="Number of Days"><textarea id="l_reason" placeholder="Leave Reason"></textarea></div>
-                <div id="loan_fields" style="display:none;"><input type="number" id="lo_amt" placeholder="Loan Amount (PKR)"><textarea id="lo_reason" placeholder="Loan Purpose"></textarea></div>
-                <button class="btn btn-primary" onclick="submitRequest()">Submit Request</button>
-            </div>
-        </div>
-
-        <div id="admin-manage-section" class="section" style="display:none;">
-            <div class="card">
-                <h3>Pending Approvals</h3>
-                <table id="reqTable">
-                    <thead><tr><th>User</th><th>Category</th><th>Details</th><th>Value</th><th>Action</th></tr></thead>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <h3>Attendance History</h3>
+                    <div>
+                        <select id="f_month"><option value="">All Months</option><option>February</option><option>January</option></select>
+                        <button class="btn btn-info" onclick="loadAttendance()">Filter</button>
+                        <button class="btn btn-primary" onclick="exportExcel()">Export CSV</button>
+                    </div>
+                </div>
+                <table id="attTable">
+                    <thead><tr><th>Employee</th><th>Action</th><th>Time</th><th>Map</th><th>Admin</th></tr></thead>
                     <tbody></tbody>
                 </table>
             </div>
         </div>
 
-        <div id="salary-section" class="section" style="display:none;">
+        <div id="user-manage-section" class="section" style="display:none;">
             <div class="card">
-                <h3>Monthly Payroll</h3>
-                <table id="salaryTable">
-                    <thead><tr><th>Name</th><th>Salary</th><th>Present</th><th>Net</th><th>Action</th></tr></thead>
+                <h3>Add New Employee</h3>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                    <input type="text" id="nu_fn" placeholder="Full Name">
+                    <input type="email" id="nu_em" placeholder="Email">
+                    <input type="text" id="nu_un" placeholder="Username">
+                    <input type="password" id="nu_pw" placeholder="Password">
+                </div>
+                <button class="btn btn-primary" style="margin-top:10px;" onclick="createUser()">Add Employee</button>
+            </div>
+            <div class="card">
+                <h3>Employee Directory</h3>
+                <table id="userTable">
+                    <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Action</th></tr></thead>
                     <tbody></tbody>
                 </table>
             </div>
@@ -90,8 +101,16 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
+        let map = L.map('map').setView([0, 0], 2);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
         let currentUser = JSON.parse(localStorage.getItem('user'));
-        setInterval(() => document.getElementById('clock').innerText = new Date().toLocaleTimeString('en-GB'), 1000);
+        let marker;
+
+        setInterval(() => {
+            document.getElementById('clock').innerText = new Date().toLocaleTimeString('en-GB');
+            document.getElementById('date-display').innerText = new Date().toDateString();
+        }, 1000);
+
         if(currentUser) initApp();
 
         async function login() {
@@ -106,45 +125,64 @@
             document.getElementById('sidebar').style.display='flex';
             document.getElementById('content').style.display='block';
             if(currentUser.role === 'admin') document.getElementById('admin-nav').style.display='block';
+            
+            navigator.geolocation.getCurrentPosition(pos => {
+                map.setView([pos.coords.latitude, pos.coords.longitude], 15);
+                marker = L.marker([pos.coords.latitude, pos.coords.longitude]).addTo(map).bindPopup("Current Location").openPopup();
+            });
+            loadAttendance();
         }
 
         function showSection(id) {
             document.querySelectorAll('.section').forEach(s => s.style.display='none');
             document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
             document.getElementById(id+'-section').style.display='block';
-            if(id === 'admin-manage') loadRequests();
-            if(id === 'salary') loadSalaryHub();
+            if(id === 'attendance') loadAttendance();
+            if(id === 'user-manage') loadUsers();
+            if(id === 'dashboard') setTimeout(()=>map.invalidateSize(), 200);
         }
 
-        function toggleReqFields() {
-            const cat = document.getElementById('req_cat').value;
-            document.getElementById('leave_fields').style.display = cat === 'leave' ? 'block' : 'none';
-            document.getElementById('loan_fields').style.display = cat === 'loan' ? 'block' : 'none';
-        }
-
-        async function submitRequest() {
-            const cat = document.getElementById('req_cat').value;
-            const url = cat === 'leave' ? '/api/request/leave' : '/api/request/loan';
-            const body = cat === 'leave' ? {userId:currentUser.id, type:'Casual', reason:l_reason.value, days:l_days.value} : {userId:currentUser.id, amount:lo_amt.value, reason:lo_reason.value};
-            await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
-            alert("Request Submitted!");
-        }
-
-        async function loadRequests() {
-            const res = await fetch('/api/admin/requests');
+        async function loadAttendance() {
+            const m = document.getElementById('f_month').value;
+            const res = await fetch(`/api/admin/records?month=${m}`);
             const data = await res.json();
-            document.querySelector('#reqTable tbody').innerHTML = data.map(r => `<tr><td>${r.full_name}</td><td>${r.category}</td><td>${r.reason}</td><td>${r.val}</td><td><button class="btn btn-primary" onclick="actionReq('${r.category}', ${r.id}, ${r.user_id}, ${r.val}, 'Approved')">Approve</button></td></tr>`).join('');
+            document.querySelector('#attTable tbody').innerHTML = data.map(r => `
+                <tr>
+                    <td>${r.username}</td>
+                    <td><b>${r.type}</b></td>
+                    <td>${r.time}</td>
+                    <td><a href="https://www.google.com/maps?q=${r.lat},${r.lon}" target="_blank">View</a></td>
+                    <td><button class="btn btn-danger" style="padding:5px 10px" onclick="deleteAtt(${r.id})">Delete</button></td>
+                </tr>
+            `).join('');
         }
 
-        async function actionReq(category, id, userId, val, status) {
-            await fetch('/api/admin/approve', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({category, id, userId, val, status})});
-            loadRequests();
+        async function deleteAtt(id) {
+            if(confirm("Delete this record?")) {
+                await fetch('/api/admin/attendance/'+id, {method:'DELETE'});
+                loadAttendance();
+            }
+        }
+
+        function exportExcel() {
+            const rows = Array.from(document.getElementById('attTable').rows).map(r => Array.from(r.cells).slice(0,-1).map(c => c.innerText).join(","));
+            const blob = new Blob([rows.join("\n")], {type:'text/csv'});
+            const a = document.createElement('a');
+            a.href = window.URL.createObjectURL(blob);
+            a.download = 'LSAF_Attendance.csv';
+            a.click();
         }
 
         function handleClock(type) {
             navigator.geolocation.getCurrentPosition(pos => {
-                fetch('/api/attendance', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId:currentUser.id, type, lat:pos.coords.latitude, lon:pos.coords.longitude})}).then(() => alert("Attendance Marked!"));
+                fetch('/api/attendance', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId:currentUser.id, type, lat:pos.coords.latitude, lon:pos.coords.longitude})}).then(() => { alert("Marked!"); loadAttendance(); });
             });
+        }
+
+        async function loadUsers() {
+            const res = await fetch('/api/admin/users');
+            const data = await res.json();
+            document.querySelector('#userTable tbody').innerHTML = data.map(u => `<tr><td>${u.full_name}</td><td>${u.email}</td><td>${u.role}</td><td><button class="btn btn-danger" onclick="deleteUser(${u.id})">Delete</button></td></tr>`).join('');
         }
 
         function logout() { localStorage.clear(); location.reload(); }
