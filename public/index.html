@@ -16,12 +16,14 @@
         .nav-item.active { background: #f0fdf4; color: var(--primary); font-weight: bold; }
         .content { flex: 1; overflow-y: auto; padding: 30px; }
         .card { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 25px; }
-        .btn { padding: 8px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 13px; }
+        .btn { padding: 8px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
         .btn-primary { background: var(--primary); color: white; }
+        .btn-danger { background: #e74c3c; color: white; }
+        .modal { display:none; position:fixed; z-index:10000; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.5); align-items:center; justify-content:center; }
         input, select, textarea { padding: 10px; border: 1px solid var(--border); border-radius: 8px; margin: 5px 0; width: 100%; box-sizing: border-box; }
         table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 13px; }
         th, td { padding: 10px; border-bottom: 1px solid var(--border); text-align: left; }
-        #login-screen { position: fixed; inset: 0; background: #fff; z-index: 9999; display: flex; align-items: center; justify-content: center; }
+        #login-screen { position: fixed; inset: 0; background: #fff; z-index: 10001; display: flex; align-items: center; justify-content: center; }
     </style>
 </head>
 <body>
@@ -35,84 +37,86 @@
         </div>
     </div>
 
+    <div id="userModal" class="modal"><div class="card" style="width:400px;">
+        <h3 id="uModalTitle">Add Employee</h3>
+        <input type="hidden" id="edit_u_id">
+        <input type="text" id="u_fn" placeholder="Full Name">
+        <input type="email" id="u_em" placeholder="Email">
+        <input type="text" id="u_un" placeholder="Username">
+        <input type="password" id="u_pw" placeholder="Password (if new)">
+        <select id="u_role"><option>employee</option><option>admin</option></select>
+        <input type="number" id="u_bal" placeholder="Leave Balance">
+        <button class="btn btn-primary" onclick="saveUser()">Save</button>
+        <button class="btn" onclick="closeModal('userModal')">Cancel</button>
+    </div></div>
+
+    <div id="manualAttModal" class="modal"><div class="card" style="width:400px;">
+        <h3>Manual Attendance Entry</h3>
+        <select id="m_user_sel"></select>
+        <select id="m_type"><option>Check-In</option><option>Check-Out</option></select>
+        <input type="datetime-local" id="m_time">
+        <button class="btn btn-primary" onclick="submitManualAtt()">Submit</button>
+        <button class="btn" onclick="closeModal('manualAttModal')">Cancel</button>
+    </div></div>
+
     <div class="sidebar" id="sidebar" style="display:none;">
         <div class="logo-box"><img src="logo.png"></div>
         <div class="nav-item active" onclick="showSection('dashboard')"><i class="fas fa-home"></i> Dashboard</div>
         <div class="nav-item" onclick="showSection('attendance')"><i class="fas fa-clock"></i> Attendance</div>
         <div class="nav-item" onclick="showSection('leave')"><i class="fas fa-calendar-day"></i> Leaves Hub</div>
-        <div id="admin-nav" style="display:none;">
-            <div class="nav-item" onclick="showSection('user-manage')"><i class="fas fa-users-cog"></i> User Management</div>
-        </div>
+        <div id="admin-nav" style="display:none;"><div class="nav-item" onclick="showSection('user-manage')"><i class="fas fa-users-cog"></i> User Management</div></div>
         <div class="nav-item" onclick="logout()" style="margin-top:auto; color:#e74c3c;"><i class="fas fa-power-off"></i> Logout</div>
     </div>
 
     <div class="content" id="content" style="display:none;">
-        
         <div id="dashboard-section" class="section">
             <div class="card" style="background: linear-gradient(135deg, #1a5d1a, #27ae60); color: #fff; text-align: center; padding: 30px;">
                 <h1 id="clock">00:00:00</h1>
                 <button class="btn" style="background:#fff; color:var(--primary)" onclick="handleClock('Check-In')">Clock In</button>
                 <button class="btn" style="background:rgba(255,255,255,0.2); color:#fff" onclick="handleClock('Check-Out')">Clock Out</button>
             </div>
-            
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                <div class="card">
-                    <h3>Recent Activity</h3>
-                    <table id="dashAttTable"><tbody></tbody></table>
-                </div>
-                <div id="dashMap" style="height: 300px; border-radius: 15px;"></div>
+                <div class="card"><h3>Recent Activity</h3><table id="dashAttTable"><tbody></tbody></table></div>
+                <div id="dashMap" style="height: 300px; border-radius: 15px; width:100%;"></div>
             </div>
-
-            <div class="card" id="admin-leave-requests" style="display:none;">
-                <h3>Pending Leave Applications</h3>
-                <table id="dashLeaveTable"><tbody></tbody></table>
-            </div>
+            <div class="card" id="admin-leave-requests" style="display:none;"><h3>Pending Leaves</h3><table id="dashLeaveTable"><tbody></tbody></table></div>
         </div>
 
         <div id="attendance-section" class="section" style="display:none;">
             <div class="card">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                     <h3>Attendance Logs</h3>
-                    <div>
-                        <select id="f_user" style="width:auto"></select>
-                        <button class="btn btn-primary" onclick="loadAttendance()">Filter</button>
-                        <button class="btn btn-primary" onclick="exportCSV('attTable')">Export CSV</button>
-                        <button class="btn btn-primary" id="manual-att-btn" style="display:none;" onclick="openManualAtt()">+ Manual Entry</button>
-                    </div>
+                    <div><button class="btn btn-primary" onclick="openManualAtt()">+ Manual Entry</button><button class="btn btn-primary" onclick="exportCSV('attTable')">Export CSV</button></div>
                 </div>
-                <table id="attTable">
-                    <thead><tr><th>Name</th><th>Type</th><th>Time</th><th>Location</th><th>Admin</th></tr></thead>
-                    <tbody></tbody>
-                </table>
+                <table id="attTable"><thead><tr><th>Name</th><th>Type</th><th>Time</th><th>Location</th><th>Action</th></tr></thead><tbody></tbody></table>
             </div>
         </div>
 
         <div id="leave-section" class="section" style="display:none;">
             <div class="card">
-                <h3>My Leave Balance: <span id="leave-bal-text" style="color:var(--primary)">0</span> Days</h3>
+                <h3>My Balance: <span id="leave-bal-text">0</span> Days</h3>
                 <hr>
-                <h4>Apply for Leave</h4>
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                    <input type="date" id="lv_start" onchange="calcLeaveDays()">
+                    <input type="date" id="lv_end" onchange="calcLeaveDays()">
+                </div>
+                <div style="display:flex; gap:10px; align-items:center;">
                     <select id="lv_type"><option>Annual Leave</option><option>Without Pay Leave</option></select>
-                    <select id="lv_days"><option value="1">Full Day</option><option value="0.5">Half Day</option></select>
+                    <span>Total Days: <b id="lv_count">0</b></span>
                 </div>
                 <textarea id="lv_reason" placeholder="Reason"></textarea>
-                <button class="btn btn-primary" onclick="applyLeave()">Submit Leave Request</button>
+                <button class="btn btn-primary" onclick="applyLeave()">Apply</button>
             </div>
+            <div class="card" id="admin-leave-history" style="display:none;"><h3>Leave Management</h3><table id="leaveAdminTable"><thead><tr><th>Name</th><th>Start</th><th>End</th><th>Days</th><th>Status</th><th>Action</th></tr></thead><tbody></tbody></table></div>
         </div>
 
         <div id="user-manage-section" class="section" style="display:none;">
             <div class="card">
                 <h3>Employee Directory</h3>
-                <button class="btn btn-primary" onclick="openUserForm()">+ Add New Employee</button>
-                <button class="btn btn-primary" onclick="exportCSV('userTable')">Export Users</button>
-                <table id="userTable">
-                    <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Balance</th><th>Action</th></tr></thead>
-                    <tbody></tbody>
-                </table>
+                <button class="btn btn-primary" onclick="openUserForm()">+ Add Employee</button>
+                <table id="userTable"><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Balance</th><th>Action</th></tr></thead><tbody></tbody></table>
             </div>
         </div>
-
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -141,7 +145,7 @@
             if(currentUser.role === 'admin') {
                 document.getElementById('admin-nav').style.display='block';
                 document.getElementById('admin-leave-requests').style.display='block';
-                document.getElementById('manual-att-btn').style.display='inline-block';
+                document.getElementById('admin-leave-history').style.display='block';
             }
             loadDashboard();
         }
@@ -150,9 +154,10 @@
             document.querySelectorAll('.section').forEach(s => s.style.display='none');
             document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
             document.getElementById(id+'-section').style.display='block';
-            if(id === 'dashboard') loadDashboard();
+            if(id === 'dashboard') { loadDashboard(); setTimeout(() => dashMap.invalidateSize(), 400); }
             if(id === 'attendance') loadAttendance();
             if(id === 'user-manage') loadUsers();
+            if(id === 'leave') loadAdminLeaves();
         }
 
         async function loadDashboard() {
@@ -160,7 +165,7 @@
             const data = await res.json();
             markers.forEach(m => dashMap.removeLayer(m));
             document.querySelector('#dashAttTable tbody').innerHTML = data.slice(0,5).map(r => {
-                if(r.lat && r.lon) {
+                if(r.lat && r.lon && r.lat != 0) {
                     let m = L.marker([r.lat, r.lon]).addTo(dashMap).bindPopup(`${r.username}: ${r.type}`);
                     markers.push(m);
                 }
@@ -171,41 +176,101 @@
                 const lRes = await fetch('/api/admin/leaves');
                 const lData = await lRes.json();
                 document.querySelector('#dashLeaveTable tbody').innerHTML = lData.filter(l => l.status === 'Pending').map(l => `
-                    <tr><td>${l.full_name}</td><td>${l.type} (${l.days}d)</td><td><button class="btn btn-primary" onclick="approveLeave(${l.id}, ${l.user_id}, ${l.days}, '${l.type}', '${l.email}', 'Approved')">Approve</button></td></tr>
+                    <tr><td>${l.full_name}</td><td>${l.days}d</td><td><button class="btn btn-primary" onclick="approveLeave(${l.id}, ${l.user_id}, ${l.days}, '${l.type}', '${l.email}', 'Approved')">Approve</button></td></tr>
                 `).join('');
             }
         }
 
-        async function handleClock(type) {
-            navigator.geolocation.getCurrentPosition(pos => {
-                fetch('/api/attendance', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId:currentUser.id, type, lat:pos.coords.latitude, lon:pos.coords.longitude})}).then(() => { alert("Marked!"); loadDashboard(); });
-            });
+        async function loadAttendance() {
+            const res = await fetch('/api/admin/records');
+            const data = await res.json();
+            document.querySelector('#attTable tbody').innerHTML = data.map(r => `
+                <tr><td>${r.username}</td><td>${r.type}</td><td>${r.time}</td>
+                <td><a href="https://maps.google.com/?q=${r.lat},${r.lon}" target="_blank">View</a></td>
+                <td><button onclick="editAtt(${r.id}, '${r.type}', '${r.time}')">Edit</button> <button onclick="deleteAtt(${r.id})">Del</button></td></tr>
+            `).join('');
+        }
+
+        async function openManualAtt() {
+            const res = await fetch('/api/admin/users');
+            const data = await res.json();
+            document.getElementById('m_user_sel').innerHTML = data.map(u => `<option value="${u.id}">${u.full_name}</option>`).join('');
+            document.getElementById('manualAttModal').style.display='flex';
+        }
+
+        async function submitManualAtt() {
+            await fetch('/api/admin/attendance/action', {method:'POST', headers:{'Content-Type':'application/json'}, 
+            body:JSON.stringify({userId:m_user_sel.value, type:m_type.value, time:m_time.value.replace('T', ' '), action:'manual'})});
+            closeModal('manualAttModal'); loadAttendance();
+        }
+
+        function calcLeaveDays() {
+            if(lv_start.value && lv_end.value) {
+                const diff = (new Date(lv_end.value) - new Date(lv_start.value)) / (1000*60*60*24) + 1;
+                document.getElementById('lv_count').innerText = diff > 0 ? diff : 0;
+            }
         }
 
         async function applyLeave() {
-            await fetch('/api/leaves/apply', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId:currentUser.id, type:lv_type.value, days:lv_days.value, reason:lv_reason.value})});
-            alert("Leave Applied!");
+            const days = parseFloat(document.getElementById('lv_count').innerText);
+            await fetch('/api/leaves/apply', {method:'POST', headers:{'Content-Type':'application/json'}, 
+            body:JSON.stringify({userId:currentUser.id, type:lv_type.value, start_date:lv_start.value, end_date:lv_end.value, days, reason:lv_reason.value})});
+            alert("Applied!");
         }
 
-        async function approveLeave(id, userId, days, type, email, status) {
-            await fetch('/api/admin/leaves/approve', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id, userId, days, type, email, status})});
-            loadDashboard();
+        async function loadAdminLeaves() {
+            if(currentUser.role !== 'admin') return;
+            const res = await fetch('/api/admin/leaves');
+            const data = await res.json();
+            document.querySelector('#leaveAdminTable tbody').innerHTML = data.map(l => `
+                <tr><td>${l.full_name}</td><td>${l.start_date}</td><td>${l.end_date}</td><td>${l.days}</td><td>${l.status}</td>
+                <td><button onclick="deleteLeave(${l.id})">Del</button></td></tr>
+            `).join('');
         }
 
         async function loadUsers() {
             const res = await fetch('/api/admin/users');
             const data = await res.json();
-            document.querySelector('#userTable tbody').innerHTML = data.map(u => `<tr><td>${u.full_name}</td><td>${u.email}</td><td>${u.role}</td><td>${u.leave_balance}</td><td><button class="btn btn-danger" onclick="deleteUser(${u.id})">Del</button></td></tr>`).join('');
+            document.querySelector('#userTable tbody').innerHTML = data.map(u => `
+                <tr><td>${u.full_name}</td><td>${u.email}</td><td>${u.role}</td><td>${u.leave_balance}</td>
+                <td><button onclick='editUser(${JSON.stringify(u)})'>Edit</button> <button onclick='deleteUser(${u.id})'>Del</button></td></tr>
+            `).join('');
         }
 
+        function openUserForm() { 
+            document.getElementById('edit_u_id').value = ''; 
+            document.getElementById('uModalTitle').innerText = "Add Employee";
+            document.getElementById('userModal').style.display='flex'; 
+        }
+
+        function editUser(u) {
+            document.getElementById('edit_u_id').value = u.id;
+            document.getElementById('u_fn').value = u.full_name;
+            document.getElementById('u_em').value = u.email;
+            document.getElementById('u_un').value = u.username;
+            document.getElementById('u_role').value = u.role;
+            document.getElementById('u_bal').value = u.leave_balance;
+            document.getElementById('uModalTitle').innerText = "Edit Employee";
+            document.getElementById('userModal').style.display='flex';
+        }
+
+        async function saveUser() {
+            const data = { id: edit_u_id.value, username: u_un.value, password: u_pw.value, full_name: u_fn.value, email: u_em.value, role: u_role.value, leave_balance: u_bal.value };
+            await fetch('/api/admin/user/save', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)});
+            closeModal('userModal'); loadUsers();
+        }
+
+        function closeModal(id) { document.getElementById(id).style.display='none'; }
+        async function handleClock(type) {
+            navigator.geolocation.getCurrentPosition(pos => {
+                fetch('/api/attendance', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId:currentUser.id, type, lat:pos.coords.latitude, lon:pos.coords.longitude})}).then(() => { alert("Marked!"); loadDashboard(); });
+            });
+        }
         function exportCSV(id) {
             const rows = Array.from(document.getElementById(id).rows).map(r => Array.from(r.cells).map(c => c.innerText).join(","));
-            const a = document.createElement('a');
-            a.href = window.URL.createObjectURL(new Blob([rows.join("\n")], {type:'text/csv'}));
-            a.download = 'LSAF_Export.csv';
-            a.click();
+            const a = document.createElement('a'); a.href = window.URL.createObjectURL(new Blob([rows.join("\n")], {type:'text/csv'}));
+            a.download = 'LSAF_Export.csv'; a.click();
         }
-
         function logout() { localStorage.clear(); location.reload(); }
     </script>
 </body>
