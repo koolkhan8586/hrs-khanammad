@@ -44,7 +44,7 @@ app.post('/api/login', (req, res) => {
     });
 });
 
-// FIXED SAVE ROUTE
+// FIXED SAVE ROUTE (FOR BOTH NEW AND EDIT)
 app.post('/api/admin/user/save', (req, res) => {
     const { id, username, password, full_name, email, role, leave_balance } = req.body;
     if (id && id !== "") {
@@ -59,19 +59,13 @@ app.post('/api/admin/user/save', (req, res) => {
             res.json({ success: true });
         });
     } else {
-        db.run("INSERT INTO users (username, password, full_name, email, role, leave_balance) VALUES (?, ?, ?, ?, ?, ?)", [username, password, full_name, email, role, leave_balance], (err) => {
-            if (err) return res.status(500).json({ error: "Exists" });
-            sendMail(email, "Welcome to LSAF", `<p>User: ${username} / Pass: ${password}</p>`);
+        db.run("INSERT INTO users (username, password, full_name, email, role, leave_balance) VALUES (?, ?, ?, ?, ?, ?)", 
+        [username, password, full_name, email, role, leave_balance], (err) => {
+            if (err) return res.status(500).json({ error: "User exists" });
+            sendMail(email, "Welcome to LSAF", `<p>Credentials: ${username} / ${password}</p>`);
             res.json({ success: true });
         });
     }
-});
-
-app.post('/api/admin/user/import', (req, res) => {
-    const users = req.body;
-    const stmt = db.prepare("INSERT OR IGNORE INTO users (username, password, full_name, email, role, leave_balance) VALUES (?, ?, ?, ?, ?, ?)");
-    users.forEach(u => stmt.run(u.username, u.password, u.full_name, u.email, u.role, u.leave_balance));
-    stmt.finalize(() => res.json({success: true}));
 });
 
 app.get('/api/admin/users', (req, res) => {
@@ -82,7 +76,7 @@ app.delete('/api/admin/user/:id', (req, res) => {
     db.run("DELETE FROM users WHERE id = ?", [req.params.id], () => res.json({ success: true }));
 });
 
-// RESTORED MANUAL ATTENDANCE & ACTIONS
+// ATTENDANCE ACTIONS
 app.post('/api/admin/attendance/action', (req, res) => {
     const { id, userId, type, time, action } = req.body;
     if (action === 'delete') {
@@ -111,7 +105,7 @@ app.post('/api/attendance', (req, res) => {
     db.run("INSERT INTO attendance (user_id, type, lat, lon, time, month) VALUES (?, ?, ?, ?, ?, ?)", [userId, type, lat, lon, pkTime, month], () => res.json({ success: true, time: pkTime }));
 });
 
-// LEAVES Hub
+// LEAVES
 app.get('/api/admin/leaves', (req, res) => {
     db.all("SELECT l.*, u.full_name, u.email FROM leaves l JOIN users u ON l.user_id = u.id ORDER BY l.id DESC", (err, rows) => res.json(rows || []));
 });
@@ -131,4 +125,4 @@ app.post('/api/admin/leaves/action', (req, res) => {
     });
 });
 
-app.listen(PORT, '127.0.0.1', () => console.log(`LSAF HR Portal Live on Port 5060`));
+app.listen(PORT, '127.0.0.1', () => console.log(`LSAF Server Active on 5060`));
