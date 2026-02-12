@@ -7,17 +7,19 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         :root { --primary: #2c3e50; --success: #27ae60; --danger: #e74c3c; --blue: #3498db; }
-        body { font-family: sans-serif; margin: 0; background: #f0f2f5; }
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #f0f2f5; }
         .nav { display: none; background: var(--primary); overflow-x: auto; white-space: nowrap; }
         .nav button { color: white; background: none; border: none; padding: 15px; cursor: pointer; }
         .container { padding: 15px; max-width: 900px; margin: auto; }
         .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        .btn { color: white; padding: 12px; border: none; border-radius: 5px; width: 100%; cursor: pointer; font-size: 16px; margin-top: 5px; }
+        .btn { color: white; padding: 12px; border: none; border-radius: 5px; width: 100%; cursor: pointer; font-size: 16px; margin-top: 5px; font-weight: bold; }
         .btn-success { background: var(--success); }
         .btn-blue { background: var(--blue); }
-        input, select, textarea { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
+        .btn-danger { background: var(--danger); }
+        input, select, textarea { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
         table { width: 100%; border-collapse: collapse; font-size: 13px; }
-        th, td { padding: 10px; border-bottom: 1px solid #eee; text-align: left; }
+        th, td { padding: 12px; border-bottom: 1px solid #eee; text-align: left; }
+        .announcement-box { border-left: 5px solid var(--blue); padding-left: 15px; margin-bottom: 15px; }
     </style>
 </head>
 <body>
@@ -34,8 +36,8 @@
 <div id="main-app" style="display:none;">
     <div class="nav" id="main-nav">
         <button onclick="showSection('attendance')">Attendance</button>
-        <button onclick="showSection('leave')">Leave</button>
-        <button onclick="showSection('loan')">Loan</button>
+        <button onclick="showSection('leave')">Leave/Loan</button>
+        <button onclick="showSection('announcement')">Announcements</button>
         <button id="admin-btn" style="display:none;" onclick="showSection('admin')">Admin Panel</button>
         <button onclick="logout()" style="color: #ff7675;">Logout</button>
     </div>
@@ -46,40 +48,47 @@
                 <h2 id="welcome-msg">Attendance</h2>
                 <button class="btn btn-success" onclick="handleClock('Check-In')">Clock In</button>
                 <button class="btn btn-blue" onclick="handleClock('Check-Out')">Clock Out</button>
-                <div id="map" style="height:200px; margin-top:10px;"></div>
+                <div id="map" style="height:250px; margin-top:15px; border-radius:8px;"></div>
             </div>
         </div>
 
         <div id="leave-section" class="section" style="display:none;">
             <div class="card">
                 <h3>Request Leave</h3>
-                <select id="l_type"><option>Sick Leave</option><option>Casual Leave</option></select>
                 <input type="date" id="l_date">
-                <textarea id="l_reason" placeholder="Reason"></textarea>
-                <button class="btn btn-blue" onclick="requestLeave()">Submit Request</button>
+                <textarea id="l_reason" placeholder="Reason for leave"></textarea>
+                <button class="btn btn-blue" onclick="requestLeave()">Request Leave</button>
             </div>
         </div>
 
-        <div id="loan-section" class="section" style="display:none;">
+        <div id="announcement-section" class="section" style="display:none;">
             <div class="card">
-                <h3>Request Loan</h3>
-                <input type="number" id="loan_amt" placeholder="Amount">
-                <textarea id="loan_reason" placeholder="Reason/Repayment Plan"></textarea>
-                <button class="btn btn-blue" onclick="requestLoan()">Submit Request</button>
+                <h2>Recent Announcements</h2>
+                <div id="announcement-list"></div>
             </div>
         </div>
 
         <div id="admin-section" class="section" style="display:none;">
             <div class="card">
-                <h3>Manage Requests (Leaves & Loans)</h3>
-                <div id="admin-requests"></div>
+                <h3>📢 Post Announcement</h3>
+                <input type="text" id="ann_title" placeholder="Title">
+                <textarea id="ann_msg" placeholder="Message to all employees"></textarea>
+                <button class="btn btn-blue" onclick="postAnnouncement()">Post & Email All</button>
             </div>
             <div class="card">
-                <h3>Add Employee</h3>
+                <h3>➕ Add New Employee</h3>
                 <input type="text" id="fn" placeholder="Full Name">
+                <input type="email" id="em" placeholder="Email Address">
                 <input type="text" id="un" placeholder="Username">
                 <input type="password" id="pw" placeholder="Password">
-                <button class="btn btn-success" onclick="addEmp()">Create Account</button>
+                <button class="btn btn-success" onclick="addEmp()">Create & Send Welcome Email</button>
+            </div>
+            <div class="card" style="overflow-x: auto;">
+                <h3>Attendance Logs</h3>
+                <table id="logTable">
+                    <thead><tr><th>Name</th><th>Action</th><th>Time</th><th>Map</th></tr></thead>
+                    <tbody id="logBody"></tbody>
+                </table>
             </div>
         </div>
     </div>
@@ -94,13 +103,12 @@
     if(currentUser) initApp();
 
     function login() {
-        const username = document.getElementById('login_un').value;
-        const password = document.getElementById('login_pw').value;
         fetch('/api/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password })
+            body: JSON.stringify({ username: document.getElementById('login_un').value, password: document.getElementById('login_pw').value })
         }).then(res => res.json()).then(user => {
+            if(user.error) return alert(user.error);
             localStorage.setItem('user', JSON.stringify(user));
             location.reload();
         });
@@ -112,6 +120,7 @@
         document.getElementById('main-nav').style.display = 'flex';
         document.getElementById('welcome-msg').innerText = "Hi, " + currentUser.full_name;
         if(currentUser.role === 'admin') document.getElementById('admin-btn').style.display = 'block';
+        setTimeout(() => map.invalidateSize(), 400);
     }
 
     function logout() { localStorage.clear(); location.reload(); }
@@ -120,6 +129,8 @@
         document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
         document.getElementById(id + '-section').style.display = 'block';
         if(id === 'admin') loadAdminData();
+        if(id === 'announcement') loadAnnouncements();
+        if(id === 'attendance') setTimeout(() => map.invalidateSize(), 200);
     }
 
     function handleClock(type) {
@@ -128,55 +139,45 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ userId: currentUser.id, type, lat: pos.coords.latitude, lon: pos.coords.longitude })
-            }).then(() => alert(type + " Recorded"));
+            }).then(() => alert(type + " recorded and email sent."));
         });
     }
 
-    function requestLeave() {
-        fetch('/api/leaves/request', {
+    function postAnnouncement() {
+        fetch('/api/admin/announcement', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId: currentUser.id, type: document.getElementById('l_type').value, reason: document.getElementById('l_reason').value, start_date: document.getElementById('l_date').value })
-        }).then(() => alert("Leave Requested"));
+            body: JSON.stringify({ title: document.getElementById('ann_title').value, message: document.getElementById('ann_msg').value })
+        }).then(() => { alert("Posted!"); showSection('announcement'); });
     }
 
-    function requestLoan() {
-        fetch('/api/loans/request', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId: currentUser.id, amount: document.getElementById('loan_amt').value, reason: document.getElementById('loan_reason').value })
-        }).then(() => alert("Loan Requested"));
+    function loadAnnouncements() {
+        fetch('/api/announcements').then(r => r.json()).then(data => {
+            document.getElementById('announcement-list').innerHTML = data.map(a => `
+                <div class="announcement-box">
+                    <h4>${a.title}</h4>
+                    <p>${a.message}</p>
+                    <small>${new Date(a.date).toLocaleString()}</small>
+                </div>
+            `).join('');
+        });
     }
 
     function loadAdminData() {
-        // Load Leaves
-        fetch('/api/admin/leaves').then(r => r.json()).then(data => {
-            let html = "<h4>Leave Requests</h4><table><tr><th>User</th><th>Type</th><th>Status</th><th>Action</th></tr>";
-            data.forEach(r => {
-                html += `<tr><td>${r.full_name}</td><td>${r.type}</td><td>${r.status}</td>
-                <td><button onclick="updateStatus('leaves', ${r.id}, 'Approved')">✅</button> <button onclick="updateStatus('leaves', ${r.id}, 'Rejected')">❌</button></td></tr>`;
-            });
-            document.getElementById('admin-requests').innerHTML = html + "</table>";
+        fetch('/api/admin/records').then(r => r.json()).then(data => {
+            document.getElementById('logBody').innerHTML = data.map(r => `
+                <tr><td>${r.username}</td><td>${r.type}</td><td>${new Date(r.time).toLocaleTimeString()}</td>
+                <td><a href="https://www.google.com/maps?q=${r.lat},${r.lon}" target="_blank">📍 View</a></td></tr>
+            `).join('');
         });
     }
 
-    function updateStatus(table, id, status) {
-        fetch('/api/admin/update-status', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ table, id, status })
-        }).then(() => loadAdminData());
-    }
-
     function addEmp() {
-        const full_name = document.getElementById('fn').value;
-        const username = document.getElementById('un').value;
-        const password = document.getElementById('pw').value;
         fetch('/api/admin/create-employee', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password, full_name })
-        }).then(res => res.json()).then(d => alert(d.message || "Done"));
+            body: JSON.stringify({ username: document.getElementById('un').value, password: document.getElementById('pw').value, full_name: document.getElementById('fn').value, email: document.getElementById('em').value })
+        }).then(res => res.json()).then(d => alert(d.message || d.error));
     }
 </script>
 </body>
