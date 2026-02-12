@@ -27,7 +27,7 @@
 
     <div id="login-screen" style="position:fixed; inset:0; background:#fff; z-index:20000; display:flex; align-items:center; justify-content:center;">
         <div class="card" style="width:320px; text-align:center;">
-            <img src="logo.png" style="max-height:70px; margin-bottom:15px;" onerror="this.src='https://placehold.co/70x70?text=LSAF'">
+            <img src="logo.png" style="max-height:70px; margin-bottom:15px;" onerror="this.src='UOL-Green-V1.png'">
             <input type="text" id="l_un" placeholder="Username">
             <input type="password" id="l_pw" placeholder="Password">
             <button class="btn btn-primary" style="width:100%" onclick="login()">Sign In</button>
@@ -47,17 +47,8 @@
         <button class="btn" onclick="closeModal('userModal')">Cancel</button>
     </div></div>
 
-    <div id="manualAttModal" class="modal"><div class="card" style="width:400px;">
-        <h3>Manual Staff Entry</h3>
-        <select id="m_user_sel"></select>
-        <select id="m_type"><option>Check-In</option><option>Check-Out</option></select>
-        <input type="datetime-local" id="m_time">
-        <button class="btn btn-primary" onclick="submitManualAtt()">Submit</button>
-        <button class="btn" onclick="closeModal('manualAttModal')">Cancel</button>
-    </div></div>
-
     <div class="sidebar" id="sidebar" style="display:none;">
-        <div class="logo-box"><img src="logo.png" style="max-height:70px;" onerror="this.style.display='none'"></div>
+        <div class="logo-box"><img src="logo.png" style="max-height:70px;" onerror="this.src='UOL-Green-V1.png'"></div>
         <div class="nav-item active" onclick="showSection('dashboard')"><i class="fas fa-home"></i> Dashboard</div>
         <div class="nav-item" onclick="showSection('attendance')"><i class="fas fa-clock"></i> Attendance</div>
         <div class="nav-item" onclick="showSection('leave')"><i class="fas fa-calendar-day"></i> Leaves Hub</div>
@@ -86,10 +77,9 @@
                         <select id="f_user_sel" style="width:140px;"><option value="">All Staff</option></select>
                         <select id="f_month_sel" style="width:110px;"><option value="">All Months</option><option>January</option><option>February</option></select>
                         <button class="btn btn-primary" onclick="loadAttendance()">Filter</button>
-                        <button class="btn btn-primary" onclick="openManualAtt()">Manual Entry</button>
                     </div>
                 </div>
-                <table id="attTable"><thead><tr><th>Name</th><th>Type</th><th>Time</th><th>Action</th></tr></thead><tbody></tbody></table>
+                <table id="attTable"><thead><tr><th>Name</th><th>Type</th><th>Time</th><th>Location</th><th>Action</th></tr></thead><tbody></tbody></table>
             </div>
         </div>
 
@@ -226,12 +216,20 @@
 
         async function saveUser() {
             const data = { id: edit_u_id.value, username: u_un.value, password: u_pw.value, full_name: u_fn.value, email: u_em.value, role: u_role.value, leave_balance: u_bal.value };
-            const res = await fetch('/api/admin/user/save', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)});
-            if(res.ok) { closeModal('userModal'); loadUsers(); }
+            const res = await fetch('/api/admin/user/save', {
+                method:'POST', 
+                headers:{'Content-Type':'application/json'}, 
+                body:JSON.stringify(data)
+            });
+            if(res.ok) { 
+                closeModal('userModal'); 
+                loadUsers(); 
+            } else {
+                alert("Error saving user: " + res.statusText);
+            }
         }
 
         function openUserForm() { edit_u_id.value = ''; document.getElementById('userModal').style.display='flex'; }
-        function openManualAtt() { fetch('/api/admin/users').then(r => r.json()).then(data => { m_user_sel.innerHTML = data.map(u => `<option value="${u.id}">${u.full_name}</option>`).join(''); document.getElementById('manualAttModal').style.display='flex'; }); }
         function closeModal(id) { document.getElementById(id).style.display='none'; }
         
         async function handleClock(type) {
