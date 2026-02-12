@@ -7,7 +7,7 @@ const app = express();
 const PORT = 5060;
 const db = new sqlite3.Database('./hr_database.db');
 
-// --- EMAIL CONFIGURATION (REPLACE WITH YOUR GMAIL & APP PASSWORD) ---
+// --- EMAIL CONFIGURATION ---
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
@@ -33,9 +33,7 @@ app.use(express.static('public'));
 db.serialize(() => {
     db.run(`CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE, password TEXT, full_name TEXT, email TEXT, role TEXT DEFAULT 'employee', leave_balance REAL DEFAULT 20)`);
     db.run(`CREATE TABLE IF NOT EXISTS attendance (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, type TEXT, lat REAL, lon REAL, time TEXT, month TEXT)`);
-    db.run(`CREATE TABLE IF NOT EXISTS leaves (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, type TEXT, days REAL, reason TEXT, status TEXT DEFAULT 'Pending', date TEXT)`);
-    
-    // Default Admin
+    db.run(`CREATE TABLE IF NOT EXISTS leaves (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, type TEXT, start_date TEXT, end_date TEXT, days REAL, reason TEXT, status TEXT DEFAULT 'Pending', date TEXT)`);
     db.run("INSERT OR IGNORE INTO users (username, password, full_name, role, leave_balance) VALUES ('admin', 'admin123', 'System Admin', 'admin', 0)");
 });
 
@@ -48,7 +46,7 @@ app.post('/api/login', (req, res) => {
     });
 });
 
-// --- ATTENDANCE (Dashboard & Log) ---
+// --- ATTENDANCE ---
 app.post('/api/attendance', (req, res) => {
     const { userId, type, lat, lon } = req.body;
     const pkTime = getPKTime();
@@ -65,37 +63,42 @@ app.get('/api/admin/records', (req, res) => {
     db.all("SELECT a.*, u.full_name as username FROM attendance a JOIN users u ON a.user_id = u.id ORDER BY a.id DESC", (err, rows) => res.json(rows || []));
 });
 
-// Admin Update/Manual Entry
 app.post('/api/admin/attendance/action', (req, res) => {
     const { id, userId, type, time, action } = req.body;
     if (action === 'delete') {
         db.run("DELETE FROM attendance WHERE id = ?", [id], () => res.json({success: true}));
     } else if (action === 'edit') {
         db.run("UPDATE attendance SET type = ?, time = ? WHERE id = ?", [type, time, id], () => res.json({success: true}));
-    } else {
-        db.run("INSERT INTO attendance (user_id, type, lat, lon, time, month) VALUES (?, ?, 0, 0, ?, ?)", [userId, type, time, new Date(time).toLocaleString("en-US", {month:'long'})], () => res.json({success: true}));
+    } else if (action === 'manual') {
+        const month = new Date(time).toLocaleString("en-US", {month:'long'});
+        db.run("INSERT INTO attendance (user_id, type, lat, lon, time, month) VALUES (?, ?, 0, 0, ?, ?)", [userId, type, time, month], () => res.json({success: true}));
     }
 });
 
 // --- LEAVES ---
 app.post('/api/leaves/apply', (req, res) => {
-    const { userId, type, days, reason } = req.body;
-    db.run("INSERT INTO leaves (user_id, type, days, reason, date) VALUES (?, ?, ?, ?, ?)", [userId, type, days, reason, getPKTime()], () => res.json({success: true}));
+    const { userId, type, start_date, end_date, days, reason } = req.body;
+    db.run("INSERT INTO leaves (user_id, type, start_date, end_date, days, reason, date) VALUES (?, ?, ?, ?, ?, ?, ?)", 
+    [userId, type, start_date, end_date, days, reason, getPKTime()], () => res.json({success: true}));
 });
 
 app.get('/api/admin/leaves', (req, res) => {
     db.all("SELECT l.*, u.full_name, u.email FROM leaves l JOIN users u ON l.user_id = u.id ORDER BY l.id DESC", (err, rows) => res.json(rows || []));
 });
 
-app.post('/api/admin/leaves/approve', (req, res) => {
-    const { id, userId, status, days, type, email } = req.body;
-    db.run("UPDATE leaves SET status = ? WHERE id = ?", [status, id], () => {
-        if (status === 'Approved' && type === 'Annual Leave') {
-            db.run("UPDATE users SET leave_balance = leave_balance - ? WHERE id = ?", [days, userId]);
-        }
-        sendMail(email, `Leave ${status}`, `<p>Your ${type} for ${days} days has been ${status}.</p>`);
-        res.json({success: true});
-    });
+app.post('/api/admin/leaves/action', (req, res) => {
+    const { id, userId, status, days, type, email, action } = req.body;
+    if(action === 'delete') {
+        db.run("DELETE FROM leaves WHERE id = ?", [id], () => res.json({success: true}));
+    } else {
+        db.run("UPDATE leaves SET status = ? WHERE id = ?", [status, id], () => {
+            if (status === 'Approved' && type === 'Annual Leave') {
+                db.run("UPDATE users SET leave_balance = leave_balance - ? WHERE id = ?", [days, userId]);
+            }
+            sendMail(email, `Leave ${status}`, `<p>Your ${type} has been ${status}.</p>`);
+            res.json({success: true});
+        });
+    }
 });
 
 // --- USER MANAGEMENT ---
