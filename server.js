@@ -75,12 +75,12 @@ app.get('/api/admin/users', (req, res) => {
 
 app.post('/api/admin/user/save', (req, res) => {
     const { id, username, password, full_name, email, role, leave_balance } = req.body;
-    if (id) {
+    
+    if (id && id !== "") {
         // Update existing user
         let query = "UPDATE users SET username=?, full_name=?, email=?, role=?, leave_balance=? WHERE id=?";
         let params = [username, full_name, email, role, leave_balance, id];
         
-        // Update password only if a new one is provided
         if (password && password.trim() !== "") {
             query = "UPDATE users SET username=?, full_name=?, email=?, role=?, leave_balance=?, password=? WHERE id=?";
             params = [username, full_name, email, role, leave_balance, password, id];
@@ -94,13 +94,13 @@ app.post('/api/admin/user/save', (req, res) => {
         // Create new user
         db.run("INSERT INTO users (username, password, full_name, email, role, leave_balance) VALUES (?, ?, ?, ?, ?, ?)", 
         [username, password, full_name, email, role, leave_balance], function(err) {
-            if (err) return res.status(500).json({ error: "User exists" });
+            if (err) return res.status(500).json({ error: "User already exists" });
+            // Welcome email logic remains intact
             sendMail(email, "Welcome to LSAF", `<p>Credentials: ${username} / ${password}</p>`);
             res.json({ success: true });
         });
     }
 });
-
 app.post('/api/admin/user/import', (req, res) => {
     const users = req.body;
     const stmt = db.prepare("INSERT OR IGNORE INTO users (username, password, full_name, email, role, leave_balance) VALUES (?, ?, ?, ?, ?, ?)");
