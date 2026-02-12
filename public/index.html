@@ -1,4 +1,4 @@
-k<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -6,15 +6,16 @@ k<!DOCTYPE html>
     <title>HRMS - Khan Mmad</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        :root { --primary: #2c3e50; --success: #27ae60; --danger: #e74c3c; }
+        :root { --primary: #2c3e50; --success: #27ae60; --danger: #e74c3c; --blue: #3498db; }
         body { font-family: sans-serif; margin: 0; background: #f0f2f5; }
-        .nav { display: none; background: var(--primary); overflow-x: auto; }
+        .nav { display: none; background: var(--primary); overflow-x: auto; white-space: nowrap; }
         .nav button { color: white; background: none; border: none; padding: 15px; cursor: pointer; }
         .container { padding: 15px; max-width: 900px; margin: auto; }
         .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        #map { height: 250px; width: 100%; border-radius: 10px; margin-top: 10px; }
-        .btn { background: var(--success); color: white; padding: 12px; border: none; border-radius: 5px; width: 100%; cursor: pointer; font-size: 16px; }
-        input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
+        .btn { color: white; padding: 12px; border: none; border-radius: 5px; width: 100%; cursor: pointer; font-size: 16px; margin-top: 5px; }
+        .btn-success { background: var(--success); }
+        .btn-blue { background: var(--blue); }
+        input, select, textarea { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
         table { width: 100%; border-collapse: collapse; font-size: 13px; }
         th, td { padding: 10px; border-bottom: 1px solid #eee; text-align: left; }
     </style>
@@ -26,13 +27,15 @@ k<!DOCTYPE html>
         <h2>HRMS Login</h2>
         <input type="text" id="login_un" placeholder="Username">
         <input type="password" id="login_pw" placeholder="Password">
-        <button class="btn" onclick="login()">Sign In</button>
+        <button class="btn btn-success" onclick="login()">Sign In</button>
     </div>
 </div>
 
 <div id="main-app" style="display:none;">
     <div class="nav" id="main-nav">
         <button onclick="showSection('attendance')">Attendance</button>
+        <button onclick="showSection('leave')">Leave</button>
+        <button onclick="showSection('loan')">Loan</button>
         <button id="admin-btn" style="display:none;" onclick="showSection('admin')">Admin Panel</button>
         <button onclick="logout()" style="color: #ff7675;">Logout</button>
     </div>
@@ -40,28 +43,43 @@ k<!DOCTYPE html>
     <div class="container">
         <div id="attendance-section" class="section">
             <div class="card">
-                <h2 id="welcome-msg">Mark Attendance</h2>
-                <button class="btn" onclick="handleClock('Check-In')">Clock In</button>
-                <button class="btn" style="background:#3498db; margin-top:10px;" onclick="handleClock('Check-Out')">Clock Out</button>
-                <div id="map"></div>
+                <h2 id="welcome-msg">Attendance</h2>
+                <button class="btn btn-success" onclick="handleClock('Check-In')">Clock In</button>
+                <button class="btn btn-blue" onclick="handleClock('Check-Out')">Clock Out</button>
+                <div id="map" style="height:200px; margin-top:10px;"></div>
+            </div>
+        </div>
+
+        <div id="leave-section" class="section" style="display:none;">
+            <div class="card">
+                <h3>Request Leave</h3>
+                <select id="l_type"><option>Sick Leave</option><option>Casual Leave</option></select>
+                <input type="date" id="l_date">
+                <textarea id="l_reason" placeholder="Reason"></textarea>
+                <button class="btn btn-blue" onclick="requestLeave()">Submit Request</button>
+            </div>
+        </div>
+
+        <div id="loan-section" class="section" style="display:none;">
+            <div class="card">
+                <h3>Request Loan</h3>
+                <input type="number" id="loan_amt" placeholder="Amount">
+                <textarea id="loan_reason" placeholder="Reason/Repayment Plan"></textarea>
+                <button class="btn btn-blue" onclick="requestLoan()">Submit Request</button>
             </div>
         </div>
 
         <div id="admin-section" class="section" style="display:none;">
             <div class="card">
-                <h3>➕ Add Employee</h3>
+                <h3>Manage Requests (Leaves & Loans)</h3>
+                <div id="admin-requests"></div>
+            </div>
+            <div class="card">
+                <h3>Add Employee</h3>
                 <input type="text" id="fn" placeholder="Full Name">
                 <input type="text" id="un" placeholder="Username">
                 <input type="password" id="pw" placeholder="Password">
-                <button class="btn" onclick="addEmp()">Create</button>
-            </div>
-            <div class="card" style="overflow-x: auto;">
-                <h3>Logs</h3>
-                <button class="btn" style="background:#8e44ad; width:auto; margin-bottom:10px;" onclick="location.href='/api/admin/export'">📥 Export CSV</button>
-                <table id="logTable">
-                    <thead><tr><th>Name</th><th>Action</th><th>Time</th><th>Maps</th><th>Admin</th></tr></thead>
-                    <tbody id="logBody"></tbody>
-                </table>
+                <button class="btn btn-success" onclick="addEmp()">Create Account</button>
             </div>
         </div>
     </div>
@@ -71,7 +89,6 @@ k<!DOCTYPE html>
 <script>
     let map = L.map('map').setView([0, 0], 2);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-    let marker;
     let currentUser = JSON.parse(localStorage.getItem('user'));
 
     if(currentUser) initApp();
@@ -83,14 +100,9 @@ k<!DOCTYPE html>
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, password })
-        })
-        .then(res => res.ok ? res.json() : alert("Wrong login"))
-        .then(user => {
-            if(user) {
-                localStorage.setItem('user', JSON.stringify(user));
-                currentUser = user;
-                initApp();
-            }
+        }).then(res => res.json()).then(user => {
+            localStorage.setItem('user', JSON.stringify(user));
+            location.reload();
         });
     }
 
@@ -107,25 +119,53 @@ k<!DOCTYPE html>
     function showSection(id) {
         document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
         document.getElementById(id + '-section').style.display = 'block';
-        if(id === 'admin') loadLogs();
+        if(id === 'admin') loadAdminData();
     }
 
     function handleClock(type) {
         navigator.geolocation.getCurrentPosition(pos => {
-            const { latitude, longitude } = pos.coords;
-            updateMap(latitude, longitude);
             fetch('/api/attendance', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId: currentUser.id, type, lat: latitude, lon: longitude })
+                body: JSON.stringify({ userId: currentUser.id, type, lat: pos.coords.latitude, lon: pos.coords.longitude })
             }).then(() => alert(type + " Recorded"));
-        }, () => alert("Enable GPS!"));
+        });
     }
 
-    function updateMap(lat, lon) {
-        map.setView([lat, lon], 15);
-        if (marker) map.removeLayer(marker);
-        marker = L.marker([lat, lon]).addTo(map);
+    function requestLeave() {
+        fetch('/api/leaves/request', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: currentUser.id, type: document.getElementById('l_type').value, reason: document.getElementById('l_reason').value, start_date: document.getElementById('l_date').value })
+        }).then(() => alert("Leave Requested"));
+    }
+
+    function requestLoan() {
+        fetch('/api/loans/request', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: currentUser.id, amount: document.getElementById('loan_amt').value, reason: document.getElementById('loan_reason').value })
+        }).then(() => alert("Loan Requested"));
+    }
+
+    function loadAdminData() {
+        // Load Leaves
+        fetch('/api/admin/leaves').then(r => r.json()).then(data => {
+            let html = "<h4>Leave Requests</h4><table><tr><th>User</th><th>Type</th><th>Status</th><th>Action</th></tr>";
+            data.forEach(r => {
+                html += `<tr><td>${r.full_name}</td><td>${r.type}</td><td>${r.status}</td>
+                <td><button onclick="updateStatus('leaves', ${r.id}, 'Approved')">✅</button> <button onclick="updateStatus('leaves', ${r.id}, 'Rejected')">❌</button></td></tr>`;
+            });
+            document.getElementById('admin-requests').innerHTML = html + "</table>";
+        });
+    }
+
+    function updateStatus(table, id, status) {
+        fetch('/api/admin/update-status', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ table, id, status })
+        }).then(() => loadAdminData());
     }
 
     function addEmp() {
@@ -136,25 +176,7 @@ k<!DOCTYPE html>
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, password, full_name })
-        }).then(res => res.json()).then(d => alert(d.message || d.error));
-    }
-
-    function loadLogs() {
-        fetch('/api/admin/records').then(r => r.json()).then(data => {
-            document.getElementById('logBody').innerHTML = data.map(r => `
-                <tr>
-                    <td>${r.username}</td>
-                    <td>${r.type}</td>
-                    <td>${new Date(r.time).toLocaleTimeString()}</td>
-                    <td><a href="https://www.google.com/maps?q=${r.lat},${r.lon}" target="_blank">📍 View</a></td>
-                    <td><button onclick="delLog(${r.id})">❌</button></td>
-                </tr>
-            `).join('');
-        });
-    }
-
-    function delLog(id) {
-        if(confirm("Delete?")) fetch('/api/admin/attendance/'+id, { method: 'DELETE' }).then(() => loadLogs());
+        }).then(res => res.json()).then(d => alert(d.message || "Done"));
     }
 </script>
 </body>
