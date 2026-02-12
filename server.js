@@ -16,7 +16,7 @@ const transporter = nodemailer.createTransport({
     }
 });
 
-// Helper: Get Pakistan Time
+// Helper: Get Pakistan Time String
 function getPKTime() {
     return new Date().toLocaleString("en-US", {timeZone: "Asia/Karachi"});
 }
@@ -25,7 +25,6 @@ async function sendMail(to, subject, html) {
     if (!to) return;
     try {
         await transporter.sendMail({ from: '"HR System" <YOUR_EMAIL@gmail.com>', to, subject, html });
-        console.log("Email sent to: " + to);
     } catch (err) { console.error("Email Error:", err); }
 }
 
@@ -35,7 +34,9 @@ app.use(express.static('public'));
 db.serialize(() => {
     db.run(`CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE, password TEXT, full_name TEXT, email TEXT, role TEXT DEFAULT 'employee')`);
     db.run(`CREATE TABLE IF NOT EXISTS attendance (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, type TEXT, lat REAL, lon REAL, time TEXT)`);
-    db.run(`CREATE TABLE IF NOT EXISTS announcements (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, message TEXT, date TEXT)`);
+    // New Table: Payslips
+    db.run(`CREATE TABLE IF NOT EXISTS payslips (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, month TEXT, salary REAL, bonus REAL, deductions REAL, net_pay REAL, date TEXT)`);
+    
     db.run("INSERT OR IGNORE INTO users (username, password, full_name, role) VALUES ('admin', 'admin123', 'System Admin', 'admin')");
 });
 
@@ -47,22 +48,6 @@ app.post('/api/login', (req, res) => {
     });
 });
 
-app.post('/api/admin/create-employee', (req, res) => {
-    const { username, password, full_name, email } = req.body;
-    db.run("INSERT INTO users (username, password, full_name, email, role) VALUES (?, ?, ?, ?, 'employee')", 
-    [username, password, full_name, email], function(err) {
-        if (err) return res.status(500).json({ error: "User already exists" });
-        const html = `<h2>Welcome ${full_name}!</h2>
-                      <p>Your HR account is ready.</p>
-                      <p><b>URL:</b> https://hrs.khanammad.com</p>
-                      <p><b>Username:</b> ${username}</p>
-                      <p><b>Password:</b> ${password}</p>
-                      <p>Note: This system follows Pakistan Standard Time.</p>`;
-        sendMail(email, "Welcome to HR Portal", html);
-        res.json({ message: "Employee created and welcome email sent!" });
-    });
-});
-
 app.post('/api/attendance', (req, res) => {
     const { userId, type, lat, lon } = req.body;
     const pkTime = getPKTime();
@@ -70,18 +55,28 @@ app.post('/api/attendance', (req, res) => {
         db.run("INSERT INTO attendance (user_id, type, lat, lon, time) VALUES (?, ?, ?, ?, ?)", 
         [userId, type, lat, lon, pkTime], () => {
             if (user?.email) {
-                sendMail(user.email, `Attendance Alert: ${type}`, 
-                `<p>Hi ${user.full_name},</p><p>You marked <b>${type}</b> at <b>${pkTime}</b> (PKT).</p>`);
+                sendMail(user.email, `Attendance Alert: ${type}`, `<p>Hi ${user.full_name},</p><p>You marked <b>${type}</b> at <b>${pkTime}</b> (PKT).</p>`);
             }
             res.json({ success: true, time: pkTime });
         });
     });
 });
 
-app.get('/api/admin/records', (req, res) => {
-    db.all("SELECT a.*, u.full_name as username FROM attendance a JOIN users u ON a.user_id = u.id ORDER BY id DESC", (err, rows) => {
-        res.json(rows || []);
-    });
+// Admin: Generate Payslip
+app.post('/api/admin/generate-payslip', (req, res) => {
+    const { userId, month, salary, bonus, deductions } = req.body;
+    const net = (parseFloat(salary) + parseFloat(bonus)) - parseFloat(deductions);
+    db.run("INSERT INTO payslips (user_id, month, salary, bonus, deductions, net_pay, date) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    [userId, month, salary, bonus, deductions, net, getPKTime()], () => res.json({ success: true }));
 });
 
-app.listen(PORT, '127.0.0.1', () => console.log(`HRMS Server Live on Port ${PORT} (Pakistan Time)`));
+// Employee: View Payslips
+app.get('/api/payslips/:userId', (req, res) => {
+    db.all("SELECT * FROM payslips WHERE user_id = ? ORDER BY id DESC", [req.params.userId], (err, rows) => res.json(rows || []));
+});
+
+app.get('/api/admin/records', (req, res) => {
+    db.all("SELECT a.*, u.full_name as username FROM attendance a JOIN users u ON a.user_id = u.id ORDER BY id DESC", (err, rows) => res.json(rows || []));
+});
+
+app.listen(PORT, '127.0.0.1', () => console.log(`HRMS running on 5060 (PKT)`));
