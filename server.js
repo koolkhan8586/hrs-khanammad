@@ -2,15 +2,16 @@ const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const bodyParser = require('body-parser');
 const nodemailer = require('nodemailer'); 
+const path = require('path');
 const app = express();
 
 const PORT = 5060;
 const db = new sqlite3.Database('./hr_database.db');
 
-// --- EMAIL CONFIGURATION (REPLACE WITH YOUR GMAIL & APP PASSWORD) ---
+// --- EMAIL CONFIGURATION ---
 const transporter = nodemailer.createTransport({
     service: 'gmail',
-    auth: { user: 'hr@uolcc.edu.pk', pass: 'vlik dekw mwyn bnhh' }
+    auth: { user: 'hr@uolcc.edu.pk, pass: 'vlik dekw mwyn bnhh' }
 });
 
 function getPKTime() {
@@ -34,11 +35,10 @@ db.serialize(() => {
     db.run("INSERT OR IGNORE INTO users (username, password, full_name, role, leave_balance) VALUES ('admin', 'admin123', 'System Admin', 'admin', 0)");
 });
 
-// --- USER MANAGEMENT (THE FIX FOR 404 ERROR) ---
+// --- USER MANAGEMENT (EXPLICIT SAVE ROUTE) ---
 app.post('/api/admin/user/save', (req, res) => {
     const { id, username, password, full_name, email, role, leave_balance } = req.body;
     if (id && id !== "") {
-        // Update existing user
         let q = "UPDATE users SET username=?, full_name=?, email=?, role=?, leave_balance=? WHERE id=?";
         let p = [username, full_name, email, role, leave_balance, id];
         if (password && password.trim() !== "") {
@@ -50,11 +50,9 @@ app.post('/api/admin/user/save', (req, res) => {
             res.json({ success: true });
         });
     } else {
-        // Insert new user
         db.run("INSERT INTO users (username, password, full_name, email, role, leave_balance) VALUES (?, ?, ?, ?, ?, ?)", 
         [username, password, full_name, email, role, leave_balance], (err) => {
-            if (err) return res.status(500).json({ error: "User already exists" });
-            sendMail(email, "Welcome to LSAF", `<p>Account ready.<br>User: ${username}<br>Pass: ${password}</p>`);
+            if (err) return res.status(500).json({ error: "User exists" });
             res.json({ success: true });
         });
     }
@@ -68,12 +66,12 @@ app.delete('/api/admin/user/:id', (req, res) => {
     db.run("DELETE FROM users WHERE id = ?", [req.params.id], () => res.json({ success: true }));
 });
 
-// --- ALL OTHER MODULES (RESTORED) ---
+// --- ALL REMAINING MODULES ---
 app.post('/api/login', (req, res) => {
     const { username, password } = req.body;
-    db.get("SELECT * FROM users WHERE username = ? AND password = ?", [username, password], (err, user) => {
-        if (!user) return res.status(401).json({ error: "Invalid Credentials" });
-        res.json(user);
+    db.get("SELECT * FROM users WHERE username = ? AND password = ?", [username, password], (err, row) => {
+        if (!row) return res.status(401).json({ error: "Invalid" });
+        res.json(row);
     });
 });
 
@@ -100,9 +98,7 @@ app.post('/api/attendance', (req, res) => {
     const { userId, type, lat, lon } = req.body;
     const pkTime = getPKTime();
     const month = new Date().toLocaleString("en-US", {month: 'long', timeZone: "Asia/Karachi"});
-    db.run("INSERT INTO attendance (user_id, type, lat, lon, time, month) VALUES (?, ?, ?, ?, ?, ?)", [userId, type, lat, lon, pkTime, month], () => {
-        res.json({ success: true, time: pkTime });
-    });
+    db.run("INSERT INTO attendance (user_id, type, lat, lon, time, month) VALUES (?, ?, ?, ?, ?, ?)", [userId, type, lat, lon, pkTime, month], () => res.json({ success: true }));
 });
 
 app.get('/api/admin/leaves', (req, res) => {
@@ -114,14 +110,4 @@ app.post('/api/leaves/apply', (req, res) => {
     db.run("INSERT INTO leaves (user_id, type, start_date, end_date, days, reason, date) VALUES (?, ?, ?, ?, ?, ?, ?)", [userId, type, start_date, end_date, days, reason, getPKTime()], () => res.json({success: true}));
 });
 
-app.post('/api/admin/leaves/action', (req, res) => {
-    const { id, userId, status, days, type, email } = req.body;
-    db.run("UPDATE leaves SET status = ? WHERE id = ?", [status, id], () => {
-        if (status === 'Approved' && type === 'Annual Leave') {
-            db.run("UPDATE users SET leave_balance = leave_balance - ? WHERE id = ?", [days, userId]);
-        }
-        res.json({success: true});
-    });
-});
-
-app.listen(PORT, '0.0.0.0', () => console.log(`LSAF Server Active on Port ${PORT}`));
+app.listen(PORT, '0.0.0.0', () => console.log(`Server live on 5060`));
