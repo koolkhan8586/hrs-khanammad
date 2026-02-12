@@ -28,7 +28,7 @@
 
     <div id="login-screen" style="position:fixed; inset:0; background:#fff; z-index:20000; display:flex; align-items:center; justify-content:center;">
         <div class="card" style="width:320px; text-align:center;">
-            <img src="/logo.png" style="max-height:80px; margin-bottom:15px;" onerror="this.src='https://placehold.co/150x80?text=LSAF+Logo'">
+            <img src="logo.png" style="max-height:80px; margin-bottom:15px;" onerror="this.src='https://placehold.co/150x80?text=LSAF'">
             <input type="text" id="l_un" placeholder="Username">
             <input type="password" id="l_pw" placeholder="Password">
             <button class="btn btn-primary" style="width:100%" onclick="login()">Sign In</button>
@@ -49,7 +49,7 @@
     </div></div>
 
     <div class="sidebar" id="sidebar" style="display:none;">
-        <div class="logo-box"><img src="/logo.png" onerror="this.style.display='none'"></div>
+        <div class="logo-box"><img src="logo.png" style="max-height:80px;" onerror="this.style.display='none'"></div>
         <div class="nav-item active" onclick="showSection('dashboard')"><i class="fas fa-home"></i> Dashboard</div>
         <div class="nav-item" onclick="showSection('attendance')"><i class="fas fa-clock"></i> Attendance</div>
         <div class="nav-item" onclick="showSection('leave')"><i class="fas fa-calendar-day"></i> Leaves Hub</div>
@@ -61,10 +61,8 @@
         <div id="dashboard-section" class="section">
             <div class="card" style="background: linear-gradient(135deg, #1a5d1a, #27ae60); color: #fff; text-align: center; padding: 25px;">
                 <h1 id="clock" style="margin:0">00:00:00</h1>
-                <div style="margin:15px 0;">
-                    <button class="btn" style="background:#fff; color:var(--primary)" onclick="handleClock('Check-In')">Clock In</button>
-                    <button class="btn" style="background:rgba(255,255,255,0.2); color:#fff" onclick="handleClock('Check-Out')">Clock Out</button>
-                </div>
+                <div style="margin:15px 0;"><button class="btn" style="background:#fff; color:var(--primary)" onclick="handleClock('Check-In')">Clock In</button>
+                <button class="btn" style="background:rgba(255,255,255,0.2); color:#fff" onclick="handleClock('Check-Out')">Clock Out</button></div>
             </div>
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
                 <div class="card"><h3>Recent Activity</h3><table id="dashAttTable"><tbody></tbody></table></div>
@@ -80,7 +78,6 @@
                         <select id="f_user_sel" style="width:140px;"><option value="">All Staff</option></select>
                         <select id="f_month_sel" style="width:110px;"><option value="">All Months</option><option>January</option><option>February</option></select>
                         <button class="btn btn-primary" onclick="loadAttendance()">Filter</button>
-                        <button class="btn btn-primary" id="manual-entry-btn" style="display:none" onclick="openManualAtt()">Manual Entry</button>
                     </div>
                 </div>
                 <table id="attTable"><thead><tr><th>Name</th><th>Type</th><th>Time</th><th>Action</th></tr></thead><tbody></tbody></table>
@@ -119,7 +116,6 @@
             document.getElementById('content').style.display='block';
             if(currentUser.role === 'admin') {
                 document.getElementById('admin-nav').style.display='block';
-                document.getElementById('manual-entry-btn').style.display='inline-block';
                 loadFilterUsers();
             }
             loadDashboard();
@@ -149,7 +145,7 @@
         async function saveUser() {
             const data = { id: edit_u_id.value, username: u_un.value, password: u_pw.value, full_name: u_fn.value, email: u_em.value, role: u_role.value, leave_balance: u_bal.value };
             const res = await fetch('/api/admin/user/save', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)});
-            if(res.ok) { closeModal('userModal'); loadUsers(); } else { alert("Save Error: Check Backend Connection"); }
+            if(res.ok) { closeModal('userModal'); loadUsers(); } else { alert("Network Error: Not Saved"); }
         }
 
         async function loadUsers() {
