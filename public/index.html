@@ -3,154 +3,131 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HR Portal - LSAF</title>
+    <title>LSAF HR Portal</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
     <style>
         :root { --sidebar-bg: #ffffff; --main-bg: #f8f9fa; --primary: #1a5d1a; --text: #2c3e50; --border: #edf2f7; }
         body { font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; height: 100vh; background: var(--main-bg); overflow: hidden; }
-        
         .sidebar { width: 280px; background: var(--sidebar-bg); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 20px 0; }
         .logo-box { padding: 0 20px 20px; text-align: center; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
         .logo-box img { max-width: 100%; height: auto; max-height: 80px; }
-        .org-name { font-size: 14px; font-weight: bold; color: var(--primary); margin-top: 10px; line-height: 1.2; }
-
         .nav-item { padding: 12px 25px; cursor: pointer; display: flex; align-items: center; gap: 10px; color: var(--text); border-radius: 0 25px 25px 0; margin-right: 10px; transition: 0.2s; }
-        .nav-item:hover, .nav-item.active { background: #f0fdf4; color: var(--primary); font-weight: bold; }
-        
+        .nav-item.active { background: #f0fdf4; color: var(--primary); font-weight: bold; }
         .content { flex: 1; overflow-y: auto; padding: 30px; }
         .card { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 25px; }
-        
         .hero { background: linear-gradient(135deg, #1a5d1a, #27ae60); color: white; padding: 40px; border-radius: 20px; text-align: center; }
-        .btn { padding: 12px 25px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
-        .btn-main { background: white; color: var(--primary); font-size: 18px; margin: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .btn-save { background: var(--primary); color: white; width: 100%; }
-        .btn-del { background: #e74c3c; color: white; padding: 6px 12px; }
-
-        input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid var(--border); border-radius: 8px; box-sizing: border-box; }
-        table { width: 100%; border-collapse: collapse; background: white; border-radius: 10px; overflow: hidden; }
-        th, td { padding: 15px; text-align: left; border-bottom: 1px solid var(--border); }
-        th { background: #f8f9fa; color: #666; font-size: 12px; text-transform: uppercase; }
-        
-        #login-screen { position: fixed; inset: 0; background: #f0f2f5; display: flex; align-items: center; justify-content: center; z-index: 9999; }
-        #map { height: 400px; margin-top: 25px; border-radius: 15px; border: 1px solid var(--border); }
+        .btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; margin-right: 5px; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-danger { background: #e74c3c; color: white; }
+        .btn-info { background: #3498db; color: white; }
+        input, select { padding: 10px; margin: 5px 0; border: 1px solid var(--border); border-radius: 8px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { padding: 12px; border-bottom: 1px solid var(--border); text-align: left; }
     </style>
 </head>
 <body>
 
-    <div id="login-screen">
-        <div class="card" style="width: 360px; text-align: center;">
-            <img src="logo.png" alt="LSAF Logo" style="max-height: 80px; margin-bottom: 15px;">
-            <h3 style="color:var(--primary); margin-bottom: 20px;">LSAF HR Portal</h3>
-            <input type="text" id="login_un" placeholder="Username">
-            <input type="password" id="login_pw" placeholder="Password">
-            <button class="btn btn-save" onclick="login()">Sign In</button>
-            <p id="login-err" style="color:red; font-size:12px; display:none; margin-top:10px;">Invalid Credentials</p>
+    <div id="login-screen" style="position:fixed; inset:0; background:#fff; z-index:9999; display:flex; align-items:center; justify-content:center;">
+        <div class="card" style="width:350px; text-align:center;">
+            <img src="logo.png" style="max-height:80px; margin-bottom:20px;">
+            <input type="text" id="l_un" placeholder="Username" style="width:100%">
+            <input type="password" id="l_pw" placeholder="Password" style="width:100%">
+            <button class="btn btn-primary" style="width:100%" onclick="login()">Sign In</button>
         </div>
     </div>
 
     <div class="sidebar" id="sidebar" style="display:none;">
         <div class="logo-box">
-            <img src="logo.png" alt="Logo">
-            <div class="org-name">Lahore School of Accountancy and Finance</div>
+            <img src="logo.png">
+            <div style="font-size:12px; font-weight:bold; color:var(--primary); margin-top:10px;">Lahore School of Accountancy and Finance</div>
         </div>
-        <div class="nav-item active" onclick="showSection('attendance')"><i class="fas fa-clock"></i> Attendance</div>
-        <div class="nav-item" id="admin-nav" style="display:none;" onclick="showSection('admin')"><i class="fas fa-users-cog"></i> User Management</div>
+        <div class="nav-item active" onclick="showSection('attendance')"><i class="fas fa-clock"></i> Attendance Log</div>
+        <div class="nav-item" id="admin-nav" style="display:none;" onclick="showSection('admin')"><i class="fas fa-user-edit"></i> User Management</div>
         <div class="nav-item" onclick="logout()" style="margin-top:auto; color:#e74c3c;"><i class="fas fa-sign-out-alt"></i> Logout</div>
     </div>
 
     <div class="content" id="content" style="display:none;">
+        
         <div id="attendance-section" class="section">
             <div class="hero">
                 <h1 id="clock">00:00:00</h1>
-                <p id="date">Date Loading...</p>
-                <button class="btn btn-main" onclick="handleClock('Check-In')">Clock In</button>
-                <button class="btn btn-main" onclick="handleClock('Check-Out')">Clock Out</button>
+                <button class="btn" style="background:white; color:var(--primary)" onclick="handleClock('Check-In')">Clock In</button>
+                <button class="btn" style="background:rgba(255,255,255,0.2); color:white" onclick="handleClock('Check-Out')">Clock Out</button>
             </div>
-            <div id="map"></div>
+            
+            <div class="card" style="margin-top:20px;">
+                <h3>Attendance Logs</h3>
+                <div style="display:flex; gap:10px; margin-bottom:15px;">
+                    <select id="filter_month"><option value="">All Months</option><option>February</option><option>January</option></select>
+                    <button class="btn btn-info" onclick="loadAttendance()">Filter</button>
+                    <button class="btn btn-primary" onclick="exportAttendance()">Export CSV</button>
+                </div>
+                <table id="attTable">
+                    <thead><tr><th>Employee</th><th>Type</th><th>Time</th><th>Map</th><th>Admin</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <div id="map" style="height:300px; border-radius:15px;"></div>
         </div>
 
         <div id="admin-section" class="section" style="display:none;">
             <div class="card">
-                <h3>Add New Employee</h3>
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-                    <input type="text" id="new_name" placeholder="Full Name">
-                    <input type="email" id="new_email" placeholder="Email">
-                    <input type="text" id="new_un" placeholder="Username">
-                    <input type="password" id="new_pw" placeholder="Password">
+                <h3>User Management</h3>
+                <div style="margin-bottom:15px;">
+                    <button class="btn btn-primary" onclick="showAddUser()">+ Add New</button>
+                    <button class="btn btn-info" onclick="exportUsers()">Export Users</button>
                 </div>
-                <button class="btn btn-save" style="width:auto; margin-top:10px;" onclick="createUser()">Create Account</button>
-            </div>
-            <div class="card">
-                <h3>Employee Directory</h3>
                 <table id="userTable">
-                    <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Actions</th></tr></thead>
+                    <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Balance</th><th>Action</th></tr></thead>
                     <tbody></tbody>
                 </table>
             </div>
         </div>
     </div>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        let map = L.map('map').setView([0, 0], 2);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
         let currentUser = JSON.parse(localStorage.getItem('user'));
-        let marker;
-
-        setInterval(() => {
-            const now = new Date();
-            document.getElementById('clock').innerText = now.toLocaleTimeString('en-GB');
-            document.getElementById('date').innerText = now.toDateString();
-        }, 1000);
+        setInterval(() => document.getElementById('clock').innerText = new Date().toLocaleTimeString('en-GB'), 1000);
 
         if(currentUser) initApp();
 
         async function login() {
-            const res = await fetch('/api/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username: login_un.value, password: login_pw.value })
-            });
+            const res = await fetch('/api/login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username:l_un.value, password:l_pw.value})});
             const data = await res.json();
-            if(!res.ok) {
-                document.getElementById('login-err').style.display = 'block';
-                return;
-            }
+            if(!res.ok) return alert("Wrong Credentials");
             localStorage.setItem('user', JSON.stringify(data));
             location.reload();
         }
 
         function initApp() {
-            document.getElementById('login-screen').style.display = 'none';
-            document.getElementById('sidebar').style.display = 'flex';
-            document.getElementById('content').style.display = 'block';
-            if(currentUser.role === 'admin') document.getElementById('admin-nav').style.display = 'flex';
-            
-            navigator.geolocation.getCurrentPosition(pos => {
-                map.setView([pos.coords.latitude, pos.coords.longitude], 15);
-                marker = L.marker([pos.coords.latitude, pos.coords.longitude]).addTo(map).bindPopup("Current Location").openPopup();
-            });
-            setTimeout(() => map.invalidateSize(), 400);
+            document.getElementById('login-screen').style.display='none';
+            document.getElementById('sidebar').style.display='flex';
+            document.getElementById('content').style.display='block';
+            if(currentUser.role === 'admin') document.getElementById('admin-nav').style.display='flex';
+            loadAttendance();
         }
 
         function showSection(id) {
-            document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
-            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-            document.getElementById(id + '-section').style.display = 'block';
-            event.currentTarget.classList.add('active');
-            if(id === 'admin') loadUsers();
-            if(id === 'attendance') setTimeout(() => map.invalidateSize(), 200);
+            document.querySelectorAll('.section').forEach(s => s.style.display='none');
+            document.getElementById(id+'-section').style.display='block';
+            if(id==='admin') loadUsers();
+            if(id==='attendance') loadAttendance();
         }
 
-        function handleClock(type) {
-            navigator.geolocation.getCurrentPosition(pos => {
-                fetch('/api/attendance', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ userId: currentUser.id, type, lat: pos.coords.latitude, lon: pos.coords.longitude })
-                }).then(res => res.json()).then(d => alert(`${type} marked successfully!`));
-            });
+        async function loadAttendance() {
+            const m = document.getElementById('filter_month').value;
+            const res = await fetch(`/api/admin/records?month=${m}`);
+            const data = await res.json();
+            document.querySelector('#attTable tbody').innerHTML = data.map(r => `
+                <tr>
+                    <td>${r.username}</td>
+                    <td><b>${r.type}</b></td>
+                    <td>${r.time}</td>
+                    <td><a href="https://www.google.com/maps?q=${r.lat},${r.lon}" target="_blank">View</a></td>
+                    <td><button class="btn-danger" onclick="deleteAtt(${r.id})">Del</button></td>
+                </tr>
+            `).join('');
         }
 
         async function loadUsers() {
@@ -161,22 +138,41 @@
                     <td>${u.full_name}</td>
                     <td>${u.email}</td>
                     <td>${u.role}</td>
-                    <td><button class="btn btn-del" onclick="deleteUser(${u.id})">Delete</button></td>
+                    <td>${u.leave_balance}</td>
+                    <td>
+                        <button class="btn btn-info" onclick="editUser(${u.id})">Edit</button>
+                        <button class="btn btn-danger" onclick="deleteUser(${u.id})">Delete</button>
+                    </td>
                 </tr>
             `).join('');
         }
 
-        function createUser() {
-            const data = { full_name: new_name.value, email: new_email.value, username: new_un.value, password: new_pw.value, role: 'employee' };
-            fetch('/api/admin/user/create', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            }).then(() => { alert("Employee Created!"); loadUsers(); });
+        function handleClock(type) {
+            navigator.geolocation.getCurrentPosition(pos => {
+                fetch('/api/attendance', {
+                    method:'POST',
+                    headers:{'Content-Type':'application/json'},
+                    body:JSON.stringify({userId:currentUser.id, type, lat:pos.coords.latitude, lon:pos.coords.longitude})
+                }).then(() => { alert("Marked!"); loadAttendance(); });
+            });
         }
 
-        function deleteUser(id) {
-            if(confirm("Are you sure?")) fetch(`/api/admin/user/${id}`, { method: 'DELETE' }).then(() => loadUsers());
+        function exportAttendance() {
+            const table = document.getElementById("attTable");
+            let csv = [];
+            for (let i = 0; i < table.rows.length; i++) {
+                let row = [], cols = table.rows[i].querySelectorAll("td, th");
+                for (let j = 0; j < cols.length - 1; j++) row.push(cols[j].innerText);
+                csv.push(row.join(","));
+            }
+            const blob = new Blob([csv.join("\n")], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.setAttribute('hidden', '');
+            a.setAttribute('href', url);
+            a.setAttribute('download', 'lsaf_attendance.csv');
+            document.body.appendChild(a);
+            a.click();
         }
 
         function logout() { localStorage.clear(); location.reload(); }
