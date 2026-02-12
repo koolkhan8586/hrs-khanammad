@@ -13,7 +13,7 @@ const transporter = nodemailer.createTransport({
     auth: { user: 'hr@uolcc.edu.pk', pass: 'vlik dekw mwyn bnhh' }
 });
 
-unction getPKTime() {
+function getPKTime() {
     return new Date().toLocaleString("en-US", {timeZone: "Asia/Karachi"});
 }
 
@@ -35,7 +35,6 @@ db.serialize(() => {
 });
 
 // --- API ROUTES ---
-
 app.post('/api/login', (req, res) => {
     const { username, password } = req.body;
     db.get("SELECT * FROM users WHERE username = ? AND password = ?", [username, password], (err, user) => {
@@ -44,7 +43,7 @@ app.post('/api/login', (req, res) => {
     });
 });
 
-// THE SAVE ROUTE (FIXED 404/JSON ERROR)
+// THE SAVE ROUTE (FIXED FOR NEW AND EDIT)
 app.post('/api/admin/user/save', (req, res) => {
     const { id, username, password, full_name, email, role, leave_balance } = req.body;
     if (id && id !== "") {
@@ -61,7 +60,6 @@ app.post('/api/admin/user/save', (req, res) => {
     } else {
         db.run("INSERT INTO users (username, password, full_name, email, role, leave_balance) VALUES (?, ?, ?, ?, ?, ?)", [username, password, full_name, email, role, leave_balance], (err) => {
             if (err) return res.status(500).json({ error: "User already exists" });
-            sendMail(email, "Welcome to LSAF", `<p>User: ${username} / Pass: ${password}</p>`);
             res.json({ success: true });
         });
     }
@@ -71,11 +69,7 @@ app.get('/api/admin/users', (req, res) => {
     db.all("SELECT * FROM users", (err, rows) => res.json(rows || []));
 });
 
-app.delete('/api/admin/user/:id', (req, res) => {
-    db.run("DELETE FROM users WHERE id = ?", [req.params.id], () => res.json({ success: true }));
-});
-
-// ATTENDANCE LOGS & ACTIONS
+// ATTENDANCE LOGS & MANUAL ACTIONS
 app.get('/api/admin/records', (req, res) => {
     const { month, userId } = req.query;
     let query = "SELECT a.*, u.full_name as username FROM attendance a JOIN users u ON a.user_id = u.id WHERE 1=1";
@@ -122,4 +116,4 @@ app.post('/api/admin/leaves/action', (req, res) => {
     });
 });
 
-app.listen(PORT, '0.0.0.0', () => console.log(`LSAF Server Active on Port ${PORT}`));
+app.listen(PORT, '0.0.0.0', () => console.log(`LSAF Server listening on Port ${PORT}`));
