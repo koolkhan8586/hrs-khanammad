@@ -13,7 +13,7 @@ const transporter = nodemailer.createTransport({
     auth: { user: 'hr@uolcc.edu.pk', pass: 'vlik dekw mwyn bnhh' }
 });
 
-function getPKTime() {
+unction getPKTime() {
     return new Date().toLocaleString("en-US", {timeZone: "Asia/Karachi"});
 }
 
@@ -44,36 +44,24 @@ app.post('/api/login', (req, res) => {
     });
 });
 
-// FIXED SAVE ROUTE: Correctly handles null passwords and existing IDs
+// THE SAVE ROUTE (FIXED 404/JSON ERROR)
 app.post('/api/admin/user/save', (req, res) => {
     const { id, username, password, full_name, email, role, leave_balance } = req.body;
-    console.log("Saving user data:", req.body); // Log for debugging
-
     if (id && id !== "") {
-        // Update logic
         let q = "UPDATE users SET username=?, full_name=?, email=?, role=?, leave_balance=? WHERE id=?";
         let p = [username, full_name, email, role, leave_balance, id];
-        
         if (password && password.trim() !== "") {
             q = "UPDATE users SET username=?, full_name=?, email=?, role=?, leave_balance=?, password=? WHERE id=?";
             p = [username, full_name, email, role, leave_balance, password, id];
         }
-        
-        db.run(q, p, function(err) {
-            if (err) {
-                console.error("DB Update Error:", err.message);
-                return res.status(500).json({ error: err.message });
-            }
+        db.run(q, p, (err) => {
+            if (err) return res.status(500).json({ error: err.message });
             res.json({ success: true });
         });
     } else {
-        // Insert logic
-        db.run("INSERT INTO users (username, password, full_name, email, role, leave_balance) VALUES (?, ?, ?, ?, ?, ?)", 
-        [username, password, full_name, email, role, leave_balance], function(err) {
-            if (err) {
-                console.error("DB Insert Error:", err.message);
-                return res.status(500).json({ error: "User already exists or DB error" });
-            }
+        db.run("INSERT INTO users (username, password, full_name, email, role, leave_balance) VALUES (?, ?, ?, ?, ?, ?)", [username, password, full_name, email, role, leave_balance], (err) => {
+            if (err) return res.status(500).json({ error: "User already exists" });
+            sendMail(email, "Welcome to LSAF", `<p>User: ${username} / Pass: ${password}</p>`);
             res.json({ success: true });
         });
     }
@@ -87,7 +75,7 @@ app.delete('/api/admin/user/:id', (req, res) => {
     db.run("DELETE FROM users WHERE id = ?", [req.params.id], () => res.json({ success: true }));
 });
 
-// Attendance Management
+// ATTENDANCE LOGS & ACTIONS
 app.get('/api/admin/records', (req, res) => {
     const { month, userId } = req.query;
     let query = "SELECT a.*, u.full_name as username FROM attendance a JOIN users u ON a.user_id = u.id WHERE 1=1";
@@ -114,7 +102,7 @@ app.post('/api/attendance', (req, res) => {
     db.run("INSERT INTO attendance (user_id, type, lat, lon, time, month) VALUES (?, ?, ?, ?, ?, ?)", [userId, type, lat, lon, pkTime, month], () => res.json({ success: true, time: pkTime }));
 });
 
-// Leaves Hub
+// LEAVES Hub
 app.get('/api/admin/leaves', (req, res) => {
     db.all("SELECT l.*, u.full_name, u.email FROM leaves l JOIN users u ON l.user_id = u.id ORDER BY l.id DESC", (err, rows) => res.json(rows || []));
 });
@@ -134,4 +122,4 @@ app.post('/api/admin/leaves/action', (req, res) => {
     });
 });
 
-app.listen(PORT, '127.0.0.1', () => console.log(`Backend Active on Port 5060`));
+app.listen(PORT, '0.0.0.0', () => console.log(`LSAF Server Active on Port ${PORT}`));
