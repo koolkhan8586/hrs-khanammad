@@ -10,7 +10,7 @@ const db = new sqlite3.Database('./hr_database.db');
 // --- EMAIL CONFIGURATION ---
 const transporter = nodemailer.createTransport({
     service: 'gmail',
-    auth: { user: 'YOUR_EMAIL@gmail.com', pass: 'YOUR_APP_PASSWORD' }
+    auth: { user: 'hr@uolcc.edu.pk', pass: 'vlik dekw mwyn bnhh' }
 });
 
 function getPKTime() {
