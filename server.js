@@ -16,7 +16,6 @@ const transporter = nodemailer.createTransport({
     }
 });
 
-// Helper: Pakistan Time
 function getPKTime() {
     return new Date().toLocaleString("en-US", {timeZone: "Asia/Karachi"});
 }
@@ -34,13 +33,14 @@ app.use(express.static('public'));
 db.serialize(() => {
     db.run(`CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE, password TEXT, full_name TEXT, email TEXT, role TEXT DEFAULT 'employee', leave_balance INTEGER DEFAULT 20, base_salary REAL DEFAULT 0)`);
     db.run(`CREATE TABLE IF NOT EXISTS attendance (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, type TEXT, lat REAL, lon REAL, time TEXT, month TEXT)`);
+    db.run(`CREATE TABLE IF NOT EXISTS leaves (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, type TEXT, reason TEXT, days INTEGER, status TEXT DEFAULT 'Pending', date TEXT)`);
+    db.run(`CREATE TABLE IF NOT EXISTS loans (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, amount REAL, reason TEXT, status TEXT DEFAULT 'Pending', date TEXT)`);
     db.run(`CREATE TABLE IF NOT EXISTS disbursements (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, month TEXT, amount REAL, date TEXT)`);
 
     db.run("INSERT OR IGNORE INTO users (username, password, full_name, role, leave_balance) VALUES ('admin', 'admin123', 'System Admin', 'admin', 0)");
 });
 
-// --- API ROUTES ---
-
+// --- AUTH & USER ---
 app.post('/api/login', (req, res) => {
     const { username, password } = req.body;
     db.get("SELECT * FROM users WHERE username = ? AND password = ?", [username, password], (err, user) => {
@@ -49,57 +49,45 @@ app.post('/api/login', (req, res) => {
     });
 });
 
-// User Management
 app.get('/api/admin/users', (req, res) => {
     db.all("SELECT * FROM users", (err, rows) => res.json(rows || []));
 });
 
-app.post('/api/admin/user/create', (req, res) => {
-    const { username, password, full_name, email, role, leave_balance, base_salary } = req.body;
-    db.run("INSERT INTO users (username, password, full_name, email, role, leave_balance, base_salary) VALUES (?, ?, ?, ?, ?, ?, ?)", 
-    [username, password, full_name, email, role || 'employee', leave_balance || 20, base_salary || 0], (err) => {
-        if (err) return res.status(500).json({ error: "User exists" });
-        sendMail(email, "LSAF Welcome", `User: ${username}\nPass: ${password}`);
+// --- LEAVE & LOAN LOGIC ---
+app.post('/api/request/leave', (req, res) => {
+    const { userId, type, reason, days } = req.body;
+    db.run("INSERT INTO leaves (user_id, type, reason, days, date) VALUES (?, ?, ?, ?, ?)", [userId, type, reason, days, getPKTime()], () => res.json({ success: true }));
+});
+
+app.post('/api/request/loan', (req, res) => {
+    const { userId, amount, reason } = req.body;
+    db.run("INSERT INTO loans (user_id, amount, reason, date) VALUES (?, ?, ?, ?)", [userId, amount, reason, getPKTime()], () => res.json({ success: true }));
+});
+
+app.get('/api/admin/requests', (req, res) => {
+    db.all("SELECT 'leave' as category, l.id, l.user_id, l.type, l.reason, l.days as val, l.status, u.full_name FROM leaves l JOIN users u ON l.user_id = u.id WHERE l.status = 'Pending' UNION SELECT 'loan' as category, lo.id, lo.user_id, 'Loan' as type, lo.reason, lo.amount as val, lo.status, u.full_name FROM loans lo JOIN users u ON lo.user_id = u.id WHERE lo.status = 'Pending'", (err, rows) => res.json(rows || []));
+});
+
+app.post('/api/admin/approve', (req, res) => {
+    const { category, id, userId, val, status } = req.body;
+    const table = category === 'leave' ? 'leaves' : 'loans';
+    db.run(`UPDATE ${table} SET status = ? WHERE id = ?`, [status, id], () => {
+        if (status === 'Approved' && category === 'leave') {
+            db.run("UPDATE users SET leave_balance = leave_balance - ? WHERE id = ?", [val, userId]);
+        }
         res.json({ success: true });
     });
 });
 
-app.post('/api/admin/user/update', (req, res) => {
-    const { id, full_name, email, role, leave_balance, base_salary } = req.body;
-    db.run("UPDATE users SET full_name = ?, email = ?, role = ?, leave_balance = ?, base_salary = ? WHERE id = ?", 
-    [full_name, email, role, leave_balance, base_salary, id], () => res.json({ success: true }));
-});
-
-app.delete('/api/admin/user/:id', (req, res) => {
-    db.run("DELETE FROM users WHERE id = ?", [req.params.id], () => res.json({ success: true }));
-});
-
-// Attendance logic
+// --- ATTENDANCE & SALARY ---
 app.post('/api/attendance', (req, res) => {
     const { userId, type, lat, lon } = req.body;
     const pkTime = getPKTime();
-    const month = new Date().toLocaleString("en-US", {month: 'long', timeZone: "Asia/Karachi"});
-    db.run("INSERT INTO attendance (user_id, type, lat, lon, time, month) VALUES (?, ?, ?, ?, ?, ?)", 
-    [userId, type, lat, lon, pkTime, month], () => res.json({ success: true, time: pkTime }));
+    db.run("INSERT INTO attendance (user_id, type, lat, lon, time, month) VALUES (?, ?, ?, ?, ?, ?)", [userId, type, lat, lon, pkTime, new Date().toLocaleString("en-US", {month: 'long'})], () => res.json({ success: true, time: pkTime }));
 });
 
 app.get('/api/admin/records', (req, res) => {
-    const { month, userId } = req.query;
-    let query = "SELECT a.*, u.full_name as username FROM attendance a JOIN users u ON a.user_id = u.id WHERE 1=1";
-    let params = [];
-    if(month) { query += " AND a.month = ?"; params.push(month); }
-    if(userId) { query += " AND a.user_id = ?"; params.push(userId); }
-    db.all(query + " ORDER BY a.id DESC", params, (err, rows) => res.json(rows || []));
-});
-
-// Salary Disbursement
-app.post('/api/admin/disburse', (req, res) => {
-    const { userId, month, amount, email, name } = req.body;
-    db.run("INSERT INTO disbursements (user_id, month, amount, date) VALUES (?, ?, ?, ?)", [userId, month, amount, getPKTime()], () => {
-        const html = `<h2>Salary Payment - ${month}</h2><p>Dear ${name},<br>Your salary of <b>PKR ${amount}</b> has been disbursed.</p>`;
-        sendMail(email, `Salary Payslip: ${month}`, html);
-        res.json({ success: true });
-    });
+    db.all("SELECT a.*, u.full_name as username FROM attendance a JOIN users u ON a.user_id = u.id ORDER BY a.id DESC", (err, rows) => res.json(rows || []));
 });
 
 app.listen(PORT, '127.0.0.1', () => console.log(`LSAF HRMS Live on Port ${PORT}`));
