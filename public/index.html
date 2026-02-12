@@ -12,27 +12,24 @@
         .sidebar { width: 280px; background: #fff; border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 20px 0; }
         .logo-box { padding: 0 20px 20px; text-align: center; border-bottom: 1px solid var(--border); }
         .logo-box img { max-height: 80px; }
-        .nav-item { padding: 12px 25px; cursor: pointer; display: flex; align-items: center; gap: 10px; color: var(--text); border-radius: 0 25px 25px 0; margin-right: 10px; transition: 0.2s; }
+        .nav-item { padding: 12px 25px; cursor: pointer; display: flex; align-items: center; gap: 10px; color: var(--text); border-radius: 0 25px 25px 0; margin-right: 10px; }
         .nav-item.active { background: #f0fdf4; color: var(--primary); font-weight: bold; }
         .content { flex: 1; overflow-y: auto; padding: 30px; }
         .card { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 25px; }
-        .btn { padding: 10px 15px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        .btn { padding: 8px 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
         .btn-primary { background: var(--primary); color: white; }
-        .btn-info { background: #3498db; color: white; }
         .btn-danger { background: #e74c3c; color: white; }
         input, select { padding: 10px; border: 1px solid var(--border); border-radius: 8px; margin: 5px 0; }
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        th, td { padding: 12px; border-bottom: 1px solid var(--border); text-align: left; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 13px; }
+        th, td { padding: 10px; border-bottom: 1px solid var(--border); text-align: left; }
         #login-screen { position: fixed; inset: 0; background: #fff; z-index: 9999; display: flex; align-items: center; justify-content: center; }
-        #map { height: 350px; border-radius: 15px; border: 1px solid var(--border); margin-top: 15px; }
     </style>
 </head>
 <body>
 
     <div id="login-screen">
-        <div class="card" style="width: 350px; text-align: center;">
-            <img src="logo.png" style="max-height: 80px; margin-bottom: 15px;">
-            <h3 style="color:var(--primary)">LSAF HR Portal</h3>
+        <div class="card" style="width: 320px; text-align: center;">
+            <img src="logo.png" style="max-height: 70px; margin-bottom: 15px;">
             <input type="text" id="l_un" placeholder="Username" style="width:100%">
             <input type="password" id="l_pw" placeholder="Password" style="width:100%">
             <button class="btn btn-primary" style="width:100%" onclick="login()">Sign In</button>
@@ -42,59 +39,40 @@
     <div class="sidebar" id="sidebar" style="display:none;">
         <div class="logo-box"><img src="logo.png"></div>
         <div class="nav-item active" onclick="showSection('dashboard')"><i class="fas fa-home"></i> Dashboard</div>
-        <div class="nav-item" onclick="showSection('attendance')"><i class="fas fa-clock"></i> Attendance Log</div>
-        <div id="admin-nav" style="display:none;">
-            <div class="nav-item" onclick="showSection('user-manage')"><i class="fas fa-users-cog"></i> User Management</div>
-        </div>
+        <div class="nav-item" onclick="showSection('attendance')"><i class="fas fa-list"></i> Attendance Log</div>
+        <div class="nav-item" id="admin-manual-nav" style="display:none;" onclick="showSection('manual')"><i class="fas fa-edit"></i> Admin Entry</div>
         <div class="nav-item" onclick="logout()" style="margin-top:auto; color:#e74c3c;"><i class="fas fa-power-off"></i> Logout</div>
     </div>
 
     <div class="content" id="content" style="display:none;">
         
         <div id="dashboard-section" class="section">
-            <div class="card" style="background: linear-gradient(135deg, #1a5d1a, #27ae60); color: #fff; text-align: center; padding: 50px;">
-                <h1 id="clock" style="font-size: 48px; margin: 0;">00:00:00</h1>
-                <p id="date-display" style="opacity: 0.8; margin-bottom: 30px;"></p>
-                <button class="btn" style="background: #fff; color: var(--primary); font-size: 18px; padding: 15px 40px;" onclick="handleClock('Check-In')">Clock In</button>
-                <button class="btn" style="background: rgba(255,255,255,0.2); color: #fff; font-size: 18px; padding: 15px 40px;" onclick="handleClock('Check-Out')">Clock Out</button>
+            <div class="card" style="background: linear-gradient(135deg, #1a5d1a, #27ae60); color: #fff; text-align: center; padding: 40px;">
+                <h1 id="clock" style="font-size: 40px; margin: 0;">00:00:00</h1>
+                <p id="date-display" style="opacity: 0.8;"></p>
+                <button class="btn" style="background: #fff; color: var(--primary); margin: 5px;" onclick="handleClock('Check-In')">Clock In</button>
+                <button class="btn" style="background: rgba(255,255,255,0.2); color: #fff; margin: 5px;" onclick="handleClock('Check-Out')">Clock Out</button>
             </div>
-            <div id="map"></div>
+            <div id="map" style="height: 300px; border-radius: 15px; margin-top: 20px; border: 1px solid var(--border);"></div>
         </div>
 
         <div id="attendance-section" class="section" style="display:none;">
             <div class="card">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <h3>Attendance History</h3>
-                    <div>
-                        <select id="f_month"><option value="">All Months</option><option>February</option><option>January</option></select>
-                        <button class="btn btn-info" onclick="loadAttendance()">Filter</button>
-                        <button class="btn btn-primary" onclick="exportExcel()">Export CSV</button>
-                    </div>
-                </div>
+                <h3>Attendance History</h3>
                 <table id="attTable">
-                    <thead><tr><th>Employee</th><th>Action</th><th>Time</th><th>Map</th><th>Admin</th></tr></thead>
+                    <thead><tr><th>Staff</th><th>Type</th><th>Time (PKT)</th><th>Map</th><th>Admin</th></tr></thead>
                     <tbody></tbody>
                 </table>
             </div>
         </div>
 
-        <div id="user-manage-section" class="section" style="display:none;">
+        <div id="manual-section" class="section" style="display:none;">
             <div class="card">
-                <h3>Add New Employee</h3>
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-                    <input type="text" id="nu_fn" placeholder="Full Name">
-                    <input type="email" id="nu_em" placeholder="Email">
-                    <input type="text" id="nu_un" placeholder="Username">
-                    <input type="password" id="nu_pw" placeholder="Password">
-                </div>
-                <button class="btn btn-primary" style="margin-top:10px;" onclick="createUser()">Add Employee</button>
-            </div>
-            <div class="card">
-                <h3>Employee Directory</h3>
-                <table id="userTable">
-                    <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Action</th></tr></thead>
-                    <tbody></tbody>
-                </table>
+                <h3>Admin: Manual Staff Entry</h3>
+                <select id="m_user" style="width:100%"></select>
+                <select id="m_type" style="width:100%"><option>Check-In</option><option>Check-Out</option></select>
+                <input type="datetime-local" id="m_time" style="width:100%">
+                <button class="btn btn-primary" style="width:100%; margin-top:10px;" onclick="saveManual()">Save Record</button>
             </div>
         </div>
     </div>
@@ -104,7 +82,6 @@
         let map = L.map('map').setView([0, 0], 2);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
         let currentUser = JSON.parse(localStorage.getItem('user'));
-        let marker;
 
         setInterval(() => {
             document.getElementById('clock').innerText = new Date().toLocaleTimeString('en-GB');
@@ -115,7 +92,7 @@
 
         async function login() {
             const res = await fetch('/api/login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username:l_un.value, password:l_pw.value})});
-            if(!res.ok) return alert("Login Failed");
+            if(!res.ok) return alert("Failed");
             localStorage.setItem('user', JSON.stringify(await res.json()));
             location.reload();
         }
@@ -124,65 +101,68 @@
             document.getElementById('login-screen').style.display='none';
             document.getElementById('sidebar').style.display='flex';
             document.getElementById('content').style.display='block';
-            if(currentUser.role === 'admin') document.getElementById('admin-nav').style.display='block';
-            
-            navigator.geolocation.getCurrentPosition(pos => {
-                map.setView([pos.coords.latitude, pos.coords.longitude], 15);
-                marker = L.marker([pos.coords.latitude, pos.coords.longitude]).addTo(map).bindPopup("Current Location").openPopup();
-            });
+            if(currentUser.role === 'admin') {
+                document.getElementById('admin-manual-nav').style.display='flex';
+                loadStaffList();
+            }
+            navigator.geolocation.getCurrentPosition(pos => map.setView([pos.coords.latitude, pos.coords.longitude], 15));
             loadAttendance();
         }
 
         function showSection(id) {
             document.querySelectorAll('.section').forEach(s => s.style.display='none');
-            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
             document.getElementById(id+'-section').style.display='block';
-            if(id === 'attendance') loadAttendance();
-            if(id === 'user-manage') loadUsers();
             if(id === 'dashboard') setTimeout(()=>map.invalidateSize(), 200);
         }
 
+        async function loadStaffList() {
+            const res = await fetch('/api/admin/users');
+            const users = await res.json();
+            document.getElementById('m_user').innerHTML = users.map(u => `<option value="${u.id}">${u.full_name}</option>`).join('');
+        }
+
         async function loadAttendance() {
-            const m = document.getElementById('f_month').value;
-            const res = await fetch(`/api/admin/records?month=${m}`);
+            const res = await fetch('/api/admin/records');
             const data = await res.json();
             document.querySelector('#attTable tbody').innerHTML = data.map(r => `
                 <tr>
                     <td>${r.username}</td>
                     <td><b>${r.type}</b></td>
                     <td>${r.time}</td>
-                    <td><a href="https://www.google.com/maps?q=${r.lat},${r.lon}" target="_blank">View</a></td>
-                    <td><button class="btn btn-danger" style="padding:5px 10px" onclick="deleteAtt(${r.id})">Delete</button></td>
+                    <td><a href="http://google.com/maps?q=${r.lat},${r.lon}" target="_blank">View</a></td>
+                    <td>
+                        <button class="btn btn-primary" style="padding:2px 5px" onclick="editRecord(${r.id}, '${r.type}', '${r.time}')">Edit</button>
+                        <button class="btn btn-danger" style="padding:2px 5px" onclick="deleteRecord(${r.id})">Del</button>
+                    </td>
                 </tr>
             `).join('');
         }
 
-        async function deleteAtt(id) {
-            if(confirm("Delete this record?")) {
+        async function saveManual() {
+            await fetch('/api/admin/attendance/manual', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId:m_user.value, type:m_type.value, time:m_time.value.replace('T', ' ')})});
+            alert("Saved"); loadAttendance();
+        }
+
+        async function editRecord(id, type, time) {
+            const newTime = prompt("Edit Date/Time:", time);
+            const newType = prompt("Edit Type (Check-In/Check-Out):", type);
+            if(newTime && newType) {
+                await fetch('/api/admin/attendance/update', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id, type:newType, time:newTime})});
+                loadAttendance();
+            }
+        }
+
+        async function deleteRecord(id) {
+            if(confirm("Delete?")) {
                 await fetch('/api/admin/attendance/'+id, {method:'DELETE'});
                 loadAttendance();
             }
         }
 
-        function exportExcel() {
-            const rows = Array.from(document.getElementById('attTable').rows).map(r => Array.from(r.cells).slice(0,-1).map(c => c.innerText).join(","));
-            const blob = new Blob([rows.join("\n")], {type:'text/csv'});
-            const a = document.createElement('a');
-            a.href = window.URL.createObjectURL(blob);
-            a.download = 'LSAF_Attendance.csv';
-            a.click();
-        }
-
         function handleClock(type) {
             navigator.geolocation.getCurrentPosition(pos => {
-                fetch('/api/attendance', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId:currentUser.id, type, lat:pos.coords.latitude, lon:pos.coords.longitude})}).then(() => { alert("Marked!"); loadAttendance(); });
+                fetch('/api/attendance', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId:currentUser.id, type, lat:pos.coords.latitude, lon:pos.coords.longitude})}).then(() => { alert("Marked"); loadAttendance(); });
             });
-        }
-
-        async function loadUsers() {
-            const res = await fetch('/api/admin/users');
-            const data = await res.json();
-            document.querySelector('#userTable tbody').innerHTML = data.map(u => `<tr><td>${u.full_name}</td><td>${u.email}</td><td>${u.role}</td><td><button class="btn btn-danger" onclick="deleteUser(${u.id})">Delete</button></td></tr>`).join('');
         }
 
         function logout() { localStorage.clear(); location.reload(); }
