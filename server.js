@@ -100,13 +100,13 @@ app.post('/api/admin/leaves/action', (req, res) => {
             if (status === 'Approved' && type === 'Annual Leave') {
                 db.run("UPDATE users SET leave_balance = leave_balance - ? WHERE id = ?", [days, userId]);
             }
-            sendMail(email, `Leave ${status}`, `<p>Your ${type} has been ${status}.</p>`);
+            sendMail(email, `Leave ${status}`, `<p>Your ${type} for ${days} days has been ${status}.</p>`);
             res.json({success: true});
         });
     }
 });
 
-// --- USER MANAGEMENT (FIXED SAVE ROUTE) ---
+// --- USER MANAGEMENT (FIXED REFLECTION) ---
 app.get('/api/admin/users', (req, res) => {
     db.all("SELECT * FROM users", (err, rows) => res.json(rows || []));
 });
@@ -120,12 +120,16 @@ app.post('/api/admin/user/save', (req, res) => {
             query = "UPDATE users SET username=?, full_name=?, email=?, role=?, leave_balance=?, password=? WHERE id=?";
             params = [username, full_name, email, role, leave_balance, password, id];
         }
-        db.run(query, params, () => res.json({success: true}));
+        db.run(query, params, (err) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ success: true });
+        });
     } else {
         db.run("INSERT INTO users (username, password, full_name, email, role, leave_balance) VALUES (?, ?, ?, ?, ?, ?)", 
-        [username, password, full_name, email, role, leave_balance], () => {
+        [username, password, full_name, email, role, leave_balance], (err) => {
+            if (err) return res.status(500).json({ error: "User exists" });
             sendMail(email, "Welcome to LSAF", `<p>User: ${username} / Pass: ${password}</p>`);
-            res.json({success: true});
+            res.json({ success: true });
         });
     }
 });
