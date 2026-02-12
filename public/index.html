@@ -3,173 +3,368 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HRMS - Khan Mmad</title>
+    <title>HR Portal - Khan Mmad</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
     <style>
-        :root { --primary: #2c3e50; --success: #27ae60; --danger: #e74c3c; --blue: #3498db; }
-        body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #f0f2f5; }
-        .nav { display: none; background: var(--primary); overflow-x: auto; white-space: nowrap; }
-        .nav button { color: white; background: none; border: none; padding: 15px; cursor: pointer; font-size: 14px; }
-        .container { padding: 15px; max-width: 900px; margin: auto; }
-        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        .btn { color: white; padding: 12px; border: none; border-radius: 5px; width: 100%; cursor: pointer; font-size: 16px; margin-top: 5px; font-weight: bold; }
-        .btn-success { background: var(--success); }
-        .btn-blue { background: var(--blue); }
-        input, select, textarea { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
-        table { width: 100%; border-collapse: collapse; font-size: 13px; }
-        th, td { padding: 12px; border-bottom: 1px solid #eee; text-align: left; }
+        :root {
+            --sidebar-bg: #ffffff;
+            --main-bg: #f8f9fa;
+            --primary-accent: #27ae60;
+            --text-main: #2c3e50;
+            --text-muted: #7f8c8d;
+            --card-shadow: 0 4px 20px rgba(0,0,0,0.05);
+            --border-color: #edf2f7;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            background-color: var(--main-bg);
+            color: var(--text-main);
+        }
+
+        /* Sidebar Styling */
+        .sidebar {
+            width: 260px;
+            background-color: var(--sidebar-bg);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            padding: 20px 0;
+            transition: all 0.3s;
+        }
+
+        .logo-area {
+            padding: 0 25px 30px;
+            font-size: 22px;
+            font-weight: bold;
+            color: var(--primary-accent);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .nav-group {
+            padding: 0 15px;
+            margin-bottom: 25px;
+        }
+
+        .nav-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            margin-bottom: 10px;
+            padding-left: 10px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
+            text-decoration: none;
+            color: var(--text-main);
+            border-radius: 8px;
+            margin-bottom: 5px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .nav-item i { width: 25px; font-size: 18px; }
+
+        .nav-item:hover, .nav-item.active {
+            background-color: #f0fdf4;
+            color: var(--primary-accent);
+        }
+
+        /* Main Content Area */
+        .main-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 30px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        /* Hero Attendance Card */
+        .hero-card {
+            background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+            border-radius: 20px;
+            padding: 40px;
+            color: white;
+            text-align: center;
+            margin-bottom: 30px;
+            position: relative;
+        }
+
+        #digital-clock { font-size: 48px; font-weight: bold; margin-bottom: 5px; }
+        #current-date { font-size: 18px; opacity: 0.9; margin-bottom: 25px; }
+
+        .clock-btn {
+            background: white;
+            color: var(--primary-accent);
+            border: none;
+            padding: 15px 40px;
+            border-radius: 50px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 10px 15px rgba(0,0,0,0.1);
+            transition: 0.3s;
+        }
+
+        .clock-btn:hover { transform: translateY(-3px); }
+
+        /* Dashboard Stats */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: var(--card-shadow);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .stat-icon {
+            width: 45px;
+            height: 45px;
+            border-radius: 10px;
+            background: #f0fdf4;
+            color: var(--primary-accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        /* Map Section */
+        #map {
+            height: 400px;
+            width: 100%;
+            border-radius: 15px;
+            box-shadow: var(--card-shadow);
+            border: 1px solid var(--border-color);
+        }
+
+        /* Admin Table */
+        .table-card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: var(--card-shadow);
+        }
+
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; color: var(--text-muted); padding: 15px; border-bottom: 1px solid var(--border-color); }
+        td { padding: 15px; border-bottom: 1px solid var(--border-color); }
+
+        /* Login Screen override */
+        #login-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: white; display: flex; align-items: center; justify-content: center; z-index: 9999;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar { position: fixed; left: -260px; z-index: 1000; height: 100%; }
+            body.mobile-nav .sidebar { left: 0; }
+        }
     </style>
 </head>
-<body>
+<body id="body-tag">
 
-<div id="login-screen" class="container">
-    <div class="card" style="margin-top: 50px; text-align: center;">
-        <h2 style="color:var(--primary)">HRMS Login</h2>
-        <input type="text" id="login_un" placeholder="Username">
-        <input type="password" id="login_pw" placeholder="Password">
-        <button class="btn btn-success" onclick="login()">Sign In</button>
-    </div>
-</div>
-
-<div id="main-app" style="display:none;">
-    <div class="nav" id="main-nav">
-        <button onclick="showSection('attendance')">Attendance</button>
-        <button onclick="showSection('payslip')">Payslip</button>
-        <button id="admin-btn" style="display:none;" onclick="showSection('admin')">Admin Panel</button>
-        <button onclick="logout()" style="color: #ff7675;">Logout</button>
+    <div id="login-screen">
+        <div style="width: 350px; text-align: center; padding: 40px; border: 1px solid var(--border-color); border-radius: 20px; box-shadow: var(--card-shadow);">
+            <div class="logo-area" style="justify-content: center; padding: 0 0 20px;">
+                <i class="fas fa-id-badge"></i> HR Portal
+            </div>
+            <input type="text" id="login_un" placeholder="Username" style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ddd; border-radius:8px;">
+            <input type="password" id="login_pw" placeholder="Password" style="width:100%; padding:12px; margin-bottom:20px; border:1px solid #ddd; border-radius:8px;">
+            <button class="clock-btn" style="width:100%; background:var(--primary-accent); color:white;" onclick="login()">Sign In</button>
+        </div>
     </div>
 
-    <div class="container">
-        <div id="attendance-section" class="section">
-            <div class="card">
-                <h2 id="welcome-msg">Attendance</h2>
-                <button class="btn btn-success" onclick="handleClock('Check-In')">Clock In</button>
-                <button class="btn btn-blue" onclick="handleClock('Check-Out')">Clock Out</button>
-                <div id="map" style="height:350px; margin-top:15px; border-radius:8px;"></div>
+    <div class="sidebar" id="sidebar-nav" style="display:none;">
+        <div class="logo-area">
+            <i class="fas fa-id-badge"></i> HR Portal
+        </div>
+        
+        <div class="nav-group">
+            <div class="nav-label">Main</div>
+            <div class="nav-item active" onclick="showSection('attendance')">
+                <i class="fas fa-house"></i> Dashboard
+            </div>
+            <div class="nav-item" onclick="showSection('payslip')">
+                <i class="fas fa-money-bill-wave"></i> Salary Hub
             </div>
         </div>
 
-        <div id="payslip-section" class="section" style="display:none;">
-            <div class="card">
-                <h3>My Payslips</h3>
-                <div id="payslip-list">No payslips found.</div>
+        <div class="nav-group" id="admin-nav-group" style="display:none;">
+            <div class="nav-label">Administration</div>
+            <div class="nav-item" onclick="showSection('admin')">
+                <i class="fas fa-users-gear"></i> User Management
             </div>
+        </div>
+
+        <div class="nav-group" style="margin-top: auto;">
+            <div class="nav-item" onclick="logout()" style="color: var(--danger);">
+                <i class="fas fa-right-from-bracket"></i> Logout
+            </div>
+        </div>
+    </div>
+
+    <div class="main-content" id="main-content-area" style="display:none;">
+        <div class="header">
+            <h1 id="page-title">Dashboard</h1>
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <span id="user-name-display" style="font-weight: bold;">Admin User</span>
+                <div style="width: 40px; height: 40px; background: #eee; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                    <i class="fas fa-user"></i>
+                </div>
+            </div>
+        </div>
+
+        <div id="attendance-section" class="section">
+            <div class="hero-card">
+                <div id="digital-clock">00:00:00</div>
+                <div id="current-date">Loading date...</div>
+                <div style="margin-bottom: 20px; font-size: 14px;">
+                    <i class="fas fa-location-dot"></i> <span id="geo-text">Detecting location...</span>
+                </div>
+                <button class="clock-btn" id="clock-main-btn" onclick="handleClock('Check-In')">Clock In</button>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-clock"></i></div>
+                    <div><div style="font-size: 12px; color: var(--text-muted);">Hours Today</div><div style="font-weight: bold;">0:00</div></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-calendar-check"></i></div>
+                    <div><div style="font-size: 12px; color: var(--text-muted);">Leave Balance</div><div style="font-weight: bold;">12 Days</div></div>
+                </div>
+            </div>
+
+            <div id="map"></div>
         </div>
 
         <div id="admin-section" class="section" style="display:none;">
-            <div class="card">
-                <h3>➕ Add New Employee</h3>
-                <input type="text" id="fn" placeholder="Full Name">
-                <input type="email" id="em" placeholder="Email Address">
-                <input type="text" id="un" placeholder="Username">
-                <input type="password" id="pw" placeholder="Password">
-                <button class="btn btn-success" onclick="addEmp()">Create Account</button>
-            </div>
-            <div class="card" style="overflow-x: auto;">
-                <h3>Attendance Logs (PKT)</h3>
-                <table id="logTable">
-                    <thead><tr><th>Name</th><th>Action</th><th>Time</th><th>Map</th></tr></thead>
+            <div class="table-card">
+                <h3>Employee Attendance Logs (PKT)</h3>
+                <table>
+                    <thead>
+                        <tr><th>Employee</th><th>Action</th><th>Time</th><th>Location</th></tr>
+                    </thead>
                     <tbody id="logBody"></tbody>
                 </table>
             </div>
         </div>
     </div>
-</div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script>
-    let map = L.map('map').setView([0, 0], 2);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-    let marker;
-    let currentUser = JSON.parse(localStorage.getItem('user'));
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        let map = L.map('map').setView([0, 0], 2);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        let marker;
+        let currentUser = JSON.parse(localStorage.getItem('user'));
 
-    if(currentUser) initApp();
+        // Digital Clock Logic
+        setInterval(() => {
+            const now = new Date();
+            document.getElementById('digital-clock').innerText = now.toLocaleTimeString('en-GB');
+            document.getElementById('current-date').innerText = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        }, 1000);
 
-    function login() {
-        fetch('/api/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username: document.getElementById('login_un').value, password: document.getElementById('login_pw').value })
-        }).then(res => res.json()).then(user => {
-            if(user.error) return alert(user.error);
-            localStorage.setItem('user', JSON.stringify(user));
-            location.reload();
-        });
-    }
+        if(currentUser) initApp();
 
-    function initApp() {
-        document.getElementById('login-screen').style.display = 'none';
-        document.getElementById('main-app').style.display = 'block';
-        document.getElementById('main-nav').style.display = 'flex';
-        document.getElementById('welcome-msg').innerText = "Hi, " + currentUser.full_name;
-        if(currentUser.role === 'admin') document.getElementById('admin-btn').style.display = 'block';
-        
-        // AUTO SHOW CURRENT LOCATION
-        navigator.geolocation.getCurrentPosition(pos => {
-            updateMap(pos.coords.latitude, pos.coords.longitude);
-        });
-
-        setTimeout(() => map.invalidateSize(), 400);
-    }
-
-    function logout() { localStorage.clear(); location.reload(); }
-
-    function showSection(id) {
-        document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
-        document.getElementById(id + '-section').style.display = 'block';
-        if(id === 'admin') loadAdminData();
-        if(id === 'payslip') loadPayslips();
-        if(id === 'attendance') {
-            setTimeout(() => map.invalidateSize(), 200);
-            navigator.geolocation.getCurrentPosition(pos => updateMap(pos.coords.latitude, pos.coords.longitude));
-        }
-    }
-
-    function updateMap(lat, lon) {
-        map.setView([lat, lon], 16);
-        if (marker) map.removeLayer(marker);
-        marker = L.marker([lat, lon]).addTo(map).bindPopup("You are here").openPopup();
-    }
-
-    function handleClock(type) {
-        navigator.geolocation.getCurrentPosition(pos => {
-            const { latitude, longitude } = pos.coords;
-            updateMap(latitude, longitude);
-            fetch('/api/attendance', {
+        function login() {
+            fetch('/api/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId: currentUser.id, type, lat: latitude, lon: longitude })
-            }).then(res => res.json()).then(data => alert(`${type} recorded at ${data.time}`));
-        });
-    }
+                body: JSON.stringify({ username: document.getElementById('login_un').value, password: document.getElementById('login_pw').value })
+            }).then(res => res.json()).then(user => {
+                if(user.error) return alert(user.error);
+                localStorage.setItem('user', JSON.stringify(user));
+                location.reload();
+            });
+        }
 
-    function loadPayslips() {
-        fetch('/api/payslips/' + currentUser.id).then(r => r.json()).then(data => {
-            if(data.length === 0) return;
-            document.getElementById('payslip-list').innerHTML = data.map(p => `
-                <div style="border:1px solid #eee; padding:10px; margin-bottom:5px; border-radius:5px;">
-                    <b>Month: ${p.month}</b><br>Net Pay: PKR ${p.net_pay}<br><small>Generated on: ${p.date}</small>
-                </div>
-            `).join('');
-        });
-    }
+        function initApp() {
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('sidebar-nav').style.display = 'flex';
+            document.getElementById('main-content-area').style.display = 'block';
+            document.getElementById('user-name-display').innerText = currentUser.full_name;
+            
+            if(currentUser.role === 'admin') {
+                document.getElementById('admin-nav-group').style.display = 'block';
+            }
+            
+            navigator.geolocation.getCurrentPosition(pos => {
+                const lat = pos.coords.latitude;
+                const lon = pos.coords.longitude;
+                document.getElementById('geo-text').innerText = `Location: ${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+                updateMap(lat, lon);
+            });
 
-    function loadAdminData() {
-        fetch('/api/admin/records').then(r => r.json()).then(data => {
-            document.getElementById('logBody').innerHTML = data.map(r => `
-                <tr><td>${r.username}</td><td>${r.type}</td><td>${r.time}</td>
-                <td><a href="https://www.google.com/maps?q=${r.lat},${r.lon}" target="_blank">📍 View</a></td></tr>
-            `).join('');
-        });
-    }
+            setTimeout(() => map.invalidateSize(), 400);
+        }
 
-    function addEmp() {
-        fetch('/api/admin/create-employee', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username: document.getElementById('un').value, password: document.getElementById('pw').value, full_name: document.getElementById('fn').value, email: document.getElementById('em').value })
-        }).then(res => res.json()).then(d => alert(d.message || d.error));
-    }
-</script>
+        function logout() { localStorage.clear(); location.reload(); }
+
+        function showSection(id) {
+            document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            
+            document.getElementById(id + '-section').style.display = 'block';
+            document.getElementById('page-title').innerText = id.charAt(0).toUpperCase() + id.slice(1);
+            
+            if(id === 'admin') loadAdminData();
+            if(id === 'attendance') setTimeout(() => map.invalidateSize(), 200);
+        }
+
+        function updateMap(lat, lon) {
+            map.setView([lat, lon], 16);
+            if (marker) map.removeLayer(marker);
+            marker = L.marker([lat, lon]).addTo(map).bindPopup("Current Position").openPopup();
+        }
+
+        function handleClock(type) {
+            navigator.geolocation.getCurrentPosition(pos => {
+                fetch('/api/attendance', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: currentUser.id, type, lat: pos.coords.latitude, lon: pos.coords.longitude })
+                }).then(res => res.json()).then(data => alert(`Success: ${type} at ${data.time}`));
+            });
+        }
+
+        function loadAdminData() {
+            fetch('/api/admin/records').then(r => r.json()).then(data => {
+                document.getElementById('logBody').innerHTML = data.map(r => `
+                    <tr>
+                        <td>${r.username}</td>
+                        <td><strong>${r.type}</strong></td>
+                        <td>${r.time}</td>
+                        <td><a href="https://www.google.com/maps?q=${r.lat},${r.lon}" target="_blank" style="color:var(--primary-accent); text-decoration:none;"><i class="fas fa-map-location-dot"></i> View Map</a></td>
+                    </tr>
+                `).join('');
+            });
+        }
+    </script>
 </body>
 </html>
