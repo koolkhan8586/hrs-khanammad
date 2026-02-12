@@ -16,65 +16,30 @@ const transporter = nodemailer.createTransport({
     }
 });
 
-// Helper: Pakistan Time String
+// Helper: Pakistan Time
 function getPKTime() {
     return new Date().toLocaleString("en-US", {timeZone: "Asia/Karachi"});
 }
 
-// Helper: Send Email
 async function sendMail(to, subject, html) {
     if (!to) return;
     try {
-        await transporter.sendMail({ 
-            from: '"LSAF HR System" <YOUR_EMAIL@gmail.com>', 
-            to, 
-            subject, 
-            html 
-        });
+        await transporter.sendMail({ from: '"LSAF HR System" <YOUR_EMAIL@gmail.com>', to, subject, html });
     } catch (err) { console.error("Email Error:", err); }
 }
 
 app.use(bodyParser.json({limit: '10mb'}));
 app.use(express.static('public'));
 
-// --- Database Schema ---
 db.serialize(() => {
-    // Users Table
-    db.run(`CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT, 
-        username TEXT UNIQUE, 
-        password TEXT, 
-        full_name TEXT, 
-        email TEXT, 
-        role TEXT DEFAULT 'employee',
-        leave_balance INTEGER DEFAULT 20,
-        base_salary REAL DEFAULT 0
-    )`);
-    
-    // Attendance Table
-    db.run(`CREATE TABLE IF NOT EXISTS attendance (
-        id INTEGER PRIMARY KEY AUTOINCREMENT, 
-        user_id INTEGER, 
-        type TEXT, 
-        lat REAL, 
-        lon REAL, 
-        time TEXT, 
-        month TEXT
-    )`);
+    db.run(`CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE, password TEXT, full_name TEXT, email TEXT, role TEXT DEFAULT 'employee', leave_balance INTEGER DEFAULT 20, base_salary REAL DEFAULT 0)`);
+    db.run(`CREATE TABLE IF NOT EXISTS attendance (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, type TEXT, lat REAL, lon REAL, time TEXT, month TEXT)`);
+    db.run(`CREATE TABLE IF NOT EXISTS disbursements (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, month TEXT, amount REAL, date TEXT)`);
 
-    // Announcements Table
-    db.run(`CREATE TABLE IF NOT EXISTS announcements (
-        id INTEGER PRIMARY KEY AUTOINCREMENT, 
-        title TEXT, 
-        message TEXT, 
-        date TEXT
-    )`);
-
-    // Default Admin
     db.run("INSERT OR IGNORE INTO users (username, password, full_name, role, leave_balance) VALUES ('admin', 'admin123', 'System Admin', 'admin', 0)");
 });
 
-// --- ROUTES ---
+// --- API ROUTES ---
 
 app.post('/api/login', (req, res) => {
     const { username, password } = req.body;
@@ -92,10 +57,9 @@ app.get('/api/admin/users', (req, res) => {
 app.post('/api/admin/user/create', (req, res) => {
     const { username, password, full_name, email, role, leave_balance, base_salary } = req.body;
     db.run("INSERT INTO users (username, password, full_name, email, role, leave_balance, base_salary) VALUES (?, ?, ?, ?, ?, ?, ?)", 
-    [username, password, full_name, email, role || 'employee', leave_balance || 20, base_salary || 0], function(err) {
-        if (err) return res.status(500).json({ error: "User already exists" });
-        const html = `<h2>Welcome to LSAF!</h2><p>User: ${username}<br>Pass: ${password}</p>`;
-        sendMail(email, "Welcome to Lahore School of Accountancy and Finance", html);
+    [username, password, full_name, email, role || 'employee', leave_balance || 20, base_salary || 0], (err) => {
+        if (err) return res.status(500).json({ error: "User exists" });
+        sendMail(email, "LSAF Welcome", `User: ${username}\nPass: ${password}`);
         res.json({ success: true });
     });
 });
@@ -115,13 +79,8 @@ app.post('/api/attendance', (req, res) => {
     const { userId, type, lat, lon } = req.body;
     const pkTime = getPKTime();
     const month = new Date().toLocaleString("en-US", {month: 'long', timeZone: "Asia/Karachi"});
-    db.get("SELECT email, full_name FROM users WHERE id = ?", [userId], (err, user) => {
-        db.run("INSERT INTO attendance (user_id, type, lat, lon, time, month) VALUES (?, ?, ?, ?, ?, ?)", 
-        [userId, type, lat, lon, pkTime, month], () => {
-            if (user?.email) sendMail(user.email, `Attendance Alert: ${type}`, `<p>${user.full_name} marked ${type} at ${pkTime}</p>`);
-            res.json({ success: true, time: pkTime });
-        });
-    });
+    db.run("INSERT INTO attendance (user_id, type, lat, lon, time, month) VALUES (?, ?, ?, ?, ?, ?)", 
+    [userId, type, lat, lon, pkTime, month], () => res.json({ success: true, time: pkTime }));
 });
 
 app.get('/api/admin/records', (req, res) => {
@@ -130,12 +89,17 @@ app.get('/api/admin/records', (req, res) => {
     let params = [];
     if(month) { query += " AND a.month = ?"; params.push(month); }
     if(userId) { query += " AND a.user_id = ?"; params.push(userId); }
-    query += " ORDER BY a.id DESC";
-    db.all(query, params, (err, rows) => res.json(rows || []));
+    db.all(query + " ORDER BY a.id DESC", params, (err, rows) => res.json(rows || []));
 });
 
-app.delete('/api/admin/attendance/:id', (req, res) => {
-    db.run("DELETE FROM attendance WHERE id = ?", [req.params.id], () => res.json({ success: true }));
+// Salary Disbursement
+app.post('/api/admin/disburse', (req, res) => {
+    const { userId, month, amount, email, name } = req.body;
+    db.run("INSERT INTO disbursements (user_id, month, amount, date) VALUES (?, ?, ?, ?)", [userId, month, amount, getPKTime()], () => {
+        const html = `<h2>Salary Payment - ${month}</h2><p>Dear ${name},<br>Your salary of <b>PKR ${amount}</b> has been disbursed.</p>`;
+        sendMail(email, `Salary Payslip: ${month}`, html);
+        res.json({ success: true });
+    });
 });
 
 app.listen(PORT, '127.0.0.1', () => console.log(`LSAF HRMS Live on Port ${PORT}`));
