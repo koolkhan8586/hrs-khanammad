@@ -11,7 +11,7 @@ const db = new sqlite3.Database('./hr_database.db');
 // --- EMAIL CONFIGURATION ---
 const transporter = nodemailer.createTransport({
     service: 'gmail',
-    auth: { user: 'hr@uolcc.edu.pk, pass: 'vlik dekw mwyn bnhh' }
+    auth: { user: 'YOUR_EMAIL@gmail.com', pass: 'YOUR_APP_PASSWORD' }
 });
 
 function getPKTime() {
@@ -35,7 +35,7 @@ db.serialize(() => {
     db.run("INSERT OR IGNORE INTO users (username, password, full_name, role, leave_balance) VALUES ('admin', 'admin123', 'System Admin', 'admin', 0)");
 });
 
-// --- USER MANAGEMENT (EXPLICIT SAVE ROUTE) ---
+// --- USER MANAGEMENT SAVE ROUTE ---
 app.post('/api/admin/user/save', (req, res) => {
     const { id, username, password, full_name, email, role, leave_balance } = req.body;
     if (id && id !== "") {
@@ -52,7 +52,7 @@ app.post('/api/admin/user/save', (req, res) => {
     } else {
         db.run("INSERT INTO users (username, password, full_name, email, role, leave_balance) VALUES (?, ?, ?, ?, ?, ?)", 
         [username, password, full_name, email, role, leave_balance], (err) => {
-            if (err) return res.status(500).json({ error: "User exists" });
+            if (err) return res.status(500).json({ error: "Exists" });
             res.json({ success: true });
         });
     }
@@ -66,15 +66,7 @@ app.delete('/api/admin/user/:id', (req, res) => {
     db.run("DELETE FROM users WHERE id = ?", [req.params.id], () => res.json({ success: true }));
 });
 
-// --- ALL REMAINING MODULES ---
-app.post('/api/login', (req, res) => {
-    const { username, password } = req.body;
-    db.get("SELECT * FROM users WHERE username = ? AND password = ?", [username, password], (err, row) => {
-        if (!row) return res.status(401).json({ error: "Invalid" });
-        res.json(row);
-    });
-});
-
+// --- ATTENDANCE & FILTERS ---
 app.get('/api/admin/records', (req, res) => {
     const { month, userId } = req.query;
     let query = "SELECT a.*, u.full_name as username FROM attendance a JOIN users u ON a.user_id = u.id WHERE 1=1";
@@ -101,6 +93,7 @@ app.post('/api/attendance', (req, res) => {
     db.run("INSERT INTO attendance (user_id, type, lat, lon, time, month) VALUES (?, ?, ?, ?, ?, ?)", [userId, type, lat, lon, pkTime, month], () => res.json({ success: true }));
 });
 
+// --- LEAVES ---
 app.get('/api/admin/leaves', (req, res) => {
     db.all("SELECT l.*, u.full_name, u.email FROM leaves l JOIN users u ON l.user_id = u.id ORDER BY l.id DESC", (err, rows) => res.json(rows || []));
 });
@@ -110,4 +103,12 @@ app.post('/api/leaves/apply', (req, res) => {
     db.run("INSERT INTO leaves (user_id, type, start_date, end_date, days, reason, date) VALUES (?, ?, ?, ?, ?, ?, ?)", [userId, type, start_date, end_date, days, reason, getPKTime()], () => res.json({success: true}));
 });
 
-app.listen(PORT, '0.0.0.0', () => console.log(`Server live on 5060`));
+app.post('/api/login', (req, res) => {
+    const { username, password } = req.body;
+    db.get("SELECT * FROM users WHERE username = ? AND password = ?", [username, password], (err, row) => {
+        if (!row) return res.status(401).json({ error: "Invalid" });
+        res.json(row);
+    });
+});
+
+app.listen(PORT, '0.0.0.0', () => console.log(`Backend running on port ${PORT}`));
