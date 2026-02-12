@@ -40,20 +40,11 @@
         <input type="text" id="u_fn" placeholder="Full Name">
         <input type="email" id="u_em" placeholder="Email">
         <input type="text" id="u_un" placeholder="Username">
-        <input type="password" id="u_pw" placeholder="Password">
-        <select id="u_role"><option>employee</option><option>admin</option></select>
+        <input type="password" id="u_pw" placeholder="Password (New Only)">
+        <select id="u_role"><option value="employee">employee</option><option value="admin">admin</option></select>
         <input type="number" id="u_bal" placeholder="Leave Balance">
         <button class="btn btn-primary" onclick="saveUser()">Save</button>
         <button class="btn" onclick="closeModal('userModal')">Cancel</button>
-    </div></div>
-
-    <div id="manualAttModal" class="modal"><div class="card" style="width:400px;">
-        <h3>Manual Entry</h3>
-        <select id="m_user_sel"></select>
-        <select id="m_type"><option>Check-In</option><option>Check-Out</option></select>
-        <input type="datetime-local" id="m_time">
-        <button class="btn btn-primary" onclick="submitManualAtt()">Submit</button>
-        <button class="btn" onclick="closeModal('manualAttModal')">Cancel</button>
     </div></div>
 
     <div class="sidebar" id="sidebar" style="display:none;">
@@ -86,7 +77,6 @@
                         <select id="f_user_sel" style="width:140px;"><option value="">All Staff</option></select>
                         <select id="f_month_sel" style="width:110px;"><option value="">All Months</option><option>January</option><option>February</option></select>
                         <button class="btn btn-primary" onclick="loadAttendance()">Filter</button>
-                        <button class="btn btn-primary" onclick="openManualAtt()">Manual</button>
                         <button class="btn" onclick="exportCSV('attTable')">CSV</button>
                     </div>
                 </div>
@@ -242,11 +232,14 @@
 
         async function saveUser() {
             const data = { id: edit_u_id.value, username: u_un.value, password: u_pw.value, full_name: u_fn.value, email: u_em.value, role: u_role.value, leave_balance: u_bal.value };
-            await fetch('/api/admin/user/save', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)});
-            closeModal('userModal'); loadUsers();
+            const res = await fetch('/api/admin/user/save', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)});
+            if(res.ok) {
+                alert("Saved Successfully");
+                closeModal('userModal'); 
+                loadUsers(); // Refresh the table
+            }
         }
 
-        function openManualAtt() { fetch('/api/admin/users').then(r => r.json()).then(data => { m_user_sel.innerHTML = data.map(u => `<option value="${u.id}">${u.full_name}</option>`).join(''); document.getElementById('manualAttModal').style.display='flex'; }); }
         function closeModal(id) { document.getElementById(id).style.display='none'; }
         async function handleClock(type) {
             navigator.geolocation.getCurrentPosition(pos => {
