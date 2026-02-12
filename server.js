@@ -11,7 +11,7 @@ const db = new sqlite3.Database('./hr_database.db');
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
-        user: 'hr@uolc.edu.pk', 
+        user: 'hr@uolcc.edu.pk', 
         pass: 'vlik dekw mwyn bnhh'     
     }
 });
@@ -47,6 +47,18 @@ app.post('/api/login', (req, res) => {
 });
 
 // --- ATTENDANCE & FILTERS ---
+app.post('/api/attendance', (req, res) => {
+    const { userId, type, lat, lon } = req.body;
+    const pkTime = getPKTime();
+    db.get("SELECT email, full_name FROM users WHERE id = ?", [userId], (err, user) => {
+        db.run("INSERT INTO attendance (user_id, type, lat, lon, time, month) VALUES (?, ?, ?, ?, ?, ?)", 
+        [userId, type, lat, lon, pkTime, new Date().toLocaleString("en-US", {month: 'long'})], () => {
+            if (user?.email) sendMail(user.email, `Attendance: ${type}`, `<p>${user.full_name}, marked ${type} at ${pkTime}.</p>`);
+            res.json({ success: true, time: pkTime });
+        });
+    });
+});
+
 app.get('/api/admin/records', (req, res) => {
     const { month, userId } = req.query;
     let query = "SELECT a.*, u.full_name as username FROM attendance a JOIN users u ON a.user_id = u.id WHERE 1=1";
@@ -68,39 +80,56 @@ app.post('/api/admin/attendance/action', (req, res) => {
     }
 });
 
-// --- USER MANAGEMENT (FIXED SAVE LOGIC) ---
+// --- LEAVES ---
+app.post('/api/leaves/apply', (req, res) => {
+    const { userId, type, start_date, end_date, days, reason } = req.body;
+    db.run("INSERT INTO leaves (user_id, type, start_date, end_date, days, reason, date) VALUES (?, ?, ?, ?, ?, ?, ?)", 
+    [userId, type, start_date, end_date, days, reason, getPKTime()], () => res.json({success: true}));
+});
+
+app.get('/api/admin/leaves', (req, res) => {
+    db.all("SELECT l.*, u.full_name, u.email FROM leaves l JOIN users u ON l.user_id = u.id ORDER BY l.id DESC", (err, rows) => res.json(rows || []));
+});
+
+app.post('/api/admin/leaves/action', (req, res) => {
+    const { id, userId, status, days, type, email, action } = req.body;
+    if(action === 'delete') {
+        db.run("DELETE FROM leaves WHERE id = ?", [id], () => res.json({success: true}));
+    } else {
+        db.run("UPDATE leaves SET status = ? WHERE id = ?", [status, id], () => {
+            if (status === 'Approved' && type === 'Annual Leave') {
+                db.run("UPDATE users SET leave_balance = leave_balance - ? WHERE id = ?", [days, userId]);
+            }
+            sendMail(email, `Leave ${status}`, `<p>Your ${type} has been ${status}.</p>`);
+            res.json({success: true});
+        });
+    }
+});
+
+// --- USER MANAGEMENT (FIXED SAVE ROUTE) ---
 app.get('/api/admin/users', (req, res) => {
     db.all("SELECT * FROM users", (err, rows) => res.json(rows || []));
 });
 
 app.post('/api/admin/user/save', (req, res) => {
     const { id, username, password, full_name, email, role, leave_balance } = req.body;
-    
     if (id && id !== "") {
-        // Update existing user
         let query = "UPDATE users SET username=?, full_name=?, email=?, role=?, leave_balance=? WHERE id=?";
         let params = [username, full_name, email, role, leave_balance, id];
-        
         if (password && password.trim() !== "") {
             query = "UPDATE users SET username=?, full_name=?, email=?, role=?, leave_balance=?, password=? WHERE id=?";
             params = [username, full_name, email, role, leave_balance, password, id];
         }
-        
-        db.run(query, params, function(err) {
-            if (err) return res.status(500).json({ error: err.message });
-            res.json({ success: true });
-        });
+        db.run(query, params, () => res.json({success: true}));
     } else {
-        // Create new user
         db.run("INSERT INTO users (username, password, full_name, email, role, leave_balance) VALUES (?, ?, ?, ?, ?, ?)", 
-        [username, password, full_name, email, role, leave_balance], function(err) {
-            if (err) return res.status(500).json({ error: "User already exists" });
-            // Welcome email logic remains intact
-            sendMail(email, "Welcome to LSAF", `<p>Credentials: ${username} / ${password}</p>`);
-            res.json({ success: true });
+        [username, password, full_name, email, role, leave_balance], () => {
+            sendMail(email, "Welcome to LSAF", `<p>User: ${username} / Pass: ${password}</p>`);
+            res.json({success: true});
         });
     }
 });
+
 app.post('/api/admin/user/import', (req, res) => {
     const users = req.body;
     const stmt = db.prepare("INSERT OR IGNORE INTO users (username, password, full_name, email, role, leave_balance) VALUES (?, ?, ?, ?, ?, ?)");
@@ -112,4 +141,4 @@ app.delete('/api/admin/user/:id', (req, res) => {
     db.run("DELETE FROM users WHERE id = ?", [req.params.id], () => res.json({success: true}));
 });
 
-app.listen(PORT, '127.0.0.1', () => console.log(`LSAF Live on 5060`));
+app.listen(PORT, '127.0.0.1', () => console.log(`LSAF HRMS Live on 5060`));
