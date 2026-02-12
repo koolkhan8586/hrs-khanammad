@@ -44,7 +44,7 @@ app.post('/api/login', (req, res) => {
     });
 });
 
-// User Save (Fixed 404 Route)
+// User Save Route (MUST MATCH FRONTEND)
 app.post('/api/admin/user/save', (req, res) => {
     const { id, username, password, full_name, email, role, leave_balance } = req.body;
     if (id && id !== "") {
@@ -74,7 +74,7 @@ app.delete('/api/admin/user/:id', (req, res) => {
     db.run("DELETE FROM users WHERE id = ?", [req.params.id], () => res.json({ success: true }));
 });
 
-// Attendance & Manual Action
+// Attendance Logs
 app.get('/api/admin/records', (req, res) => {
     const { month, userId } = req.query;
     let query = "SELECT a.*, u.full_name as username FROM attendance a JOIN users u ON a.user_id = u.id WHERE 1=1";
@@ -123,4 +123,4 @@ app.post('/api/admin/leaves/action', (req, res) => {
     });
 });
 
-app.listen(PORT, '127.0.0.1', () => console.log(`LSAF Server Active on 5060`));
+app.listen(PORT, '127.0.0.1', () => console.log(`Server running on 5060`));
