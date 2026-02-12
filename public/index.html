@@ -18,6 +18,7 @@
         .card { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 25px; }
         .btn { padding: 8px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 12px; }
         .btn-primary { background: var(--primary); color: white; }
+        .btn-danger { background: #e74c3c; color: white; }
         .modal { display:none; position:fixed; z-index:10000; inset:0; background:rgba(0,0,0,0.5); align-items:center; justify-content:center; }
         input, select, textarea { padding: 10px; border: 1px solid var(--border); border-radius: 8px; margin: 5px 0; width: 100%; box-sizing: border-box; }
         table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 13px; }
@@ -28,7 +29,7 @@
 
     <div id="login-screen" style="position:fixed; inset:0; background:#fff; z-index:20000; display:flex; align-items:center; justify-content:center;">
         <div class="card" style="width:320px; text-align:center;">
-            <img src="logo.png" style="max-height:70px; margin-bottom:15px;" onerror="this.src='UOL-Green-V1.png'">
+            <img src="logo.png" style="max-height:70px; margin-bottom:15px;" onerror="this.src='https://placehold.co/70x70?text=LSAF'">
             <input type="text" id="l_un" placeholder="Username">
             <input type="password" id="l_pw" placeholder="Password">
             <button class="btn btn-primary" style="width:100%" onclick="login()">Sign In</button>
@@ -58,9 +59,9 @@
     </div></div>
 
     <div class="sidebar" id="sidebar" style="display:none;">
-        <div class="logo-box"><img src="logo.png" style="max-height:70px;" onerror="this.src='UOL-Green-V1.png'"></div>
+        <div class="logo-box"><img src="logo.png" style="max-height:70px;" onerror="this.style.display='none'"></div>
         <div class="nav-item active" onclick="showSection('dashboard')"><i class="fas fa-home"></i> Dashboard</div>
-        <div class="nav-item" onclick="showSection('attendance')"><i class="fas fa-clock"></i> Attendance Log</div>
+        <div class="nav-item" onclick="showSection('attendance')"><i class="fas fa-clock"></i> Attendance</div>
         <div class="nav-item" onclick="showSection('leave')"><i class="fas fa-calendar-day"></i> Leaves Hub</div>
         <div id="admin-nav" style="display:none;"><div class="nav-item" onclick="showSection('user-manage')"><i class="fas fa-users-cog"></i> User Management</div></div>
         <div class="nav-item" onclick="logout()" style="margin-top:auto; color:#e74c3c;"><i class="fas fa-power-off"></i> Logout</div>
@@ -99,11 +100,11 @@
                 <h3>My Balance: <span id="leave-bal-text">0</span> Days</h3>
                 <label><input type="checkbox" id="lv_is_half" onchange="toggleHalfDay()"> Half Day</label>
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;"><input type="date" id="lv_start" onchange="calcLeaveDays()"><input type="date" id="lv_end" onchange="calcLeaveDays()"></div>
-                <p>Days: <b id="lv_count">0</b> | Type: <select id="lv_type" style="width:auto"><option>Annual Leave</option><option>Without Pay Leave</option></select></p>
+                <p>Days: <b id="lv_count">0</b> | <select id="lv_type" style="width:auto"><option>Annual Leave</option><option>Without Pay Leave</option></select></p>
                 <textarea id="lv_reason" placeholder="Reason"></textarea>
                 <button class="btn btn-primary" onclick="applyLeave()">Submit</button>
             </div>
-            <div class="card" id="admin-leave-manage" style="display:none;"><h3>Admin: Leaves Hub</h3><table id="leaveAdminTable"><thead><tr><th>Name</th><th>Days</th><th>Status</th><th>Action</th></tr></thead><tbody></tbody></table></div>
+            <div class="card" id="admin-leave-manage" style="display:none;"><h3>Admin: Leaves</h3><table id="leaveAdminTable"><thead><tr><th>Name</th><th>Start</th><th>End</th><th>Action</th></tr></thead><tbody></tbody></table></div>
         </div>
 
         <div id="user-manage-section" class="section" style="display:none;">
@@ -184,60 +185,20 @@
             document.getElementById('f_user_sel').innerHTML = '<option value="">All Staff</option>' + data.map(u => `<option value="${u.id}">${u.full_name}</option>`).join('');
         }
 
-        function toggleHalfDay() {
-            const h = document.getElementById('lv_is_half').checked;
-            document.getElementById('lv_end').disabled = h;
-            document.getElementById('lv_count').innerText = h ? "0.5" : "0";
-        }
-
-        function calcLeaveDays() {
-            if(document.getElementById('lv_is_half').checked) return;
-            const start = new Date(lv_start.value);
-            const end = new Date(lv_end.value);
-            if(start && end && end >= start) document.getElementById('lv_count').innerText = (end - start) / (1000*60*60*24) + 1;
-        }
-
         async function saveUser() {
             const data = { id: edit_u_id.value, username: u_un.value, password: u_pw.value, full_name: u_fn.value, email: u_em.value, role: u_role.value, leave_balance: u_bal.value };
-            try {
-                const res = await fetch('/api/admin/user/save', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)});
-                if (res.ok) { closeModal('userModal'); loadUsers(); } else { alert("Error Save: Server returned " + res.status); }
-            } catch (e) { alert("Save Error: Check Server connection"); }
+            const res = await fetch('/api/admin/user/save', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)});
+            if(res.ok) { closeModal('userModal'); loadUsers(); } else { alert("Not Found Error: Restart Server"); }
         }
 
         async function loadUsers() {
             const res = await fetch('/api/admin/users');
             const data = await res.json();
-            document.querySelector('#userTable tbody').innerHTML = data.map(u => `<tr><td>${u.full_name}</td><td>${u.role}</td><td>${u.leave_balance}</td><td><button onclick='editUser(${JSON.stringify(u)})'>Edit</button></td></tr>`).join('');
+            document.querySelector('#userTable tbody').innerHTML = data.map(u => `<tr><td>${u.full_name}</td><td>${u.email}</td><td>${u.role}</td><td><button onclick='editUser(${JSON.stringify(u)})'>Edit</button> <button onclick="deleteUser(${u.id})">Del</button></td></tr>`).join('');
         }
 
-        function editUser(u) {
-            edit_u_id.value = u.id; u_fn.value = u.full_name; u_em.value = u.email; u_un.value = u.username;
-            u_role.value = u.role; u_bal.value = u.leave_balance;
-            uModalTitle.innerText = "Edit Employee";
-            document.getElementById('userModal').style.display='flex';
-        }
-
-        function openUserForm() { edit_u_id.value = ''; uModalTitle.innerText = "Add Employee"; document.getElementById('userModal').style.display='flex'; }
-        
-        async function applyLeave() {
-            const days = parseFloat(document.getElementById('lv_count').innerText);
-            await fetch('/api/leaves/apply', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId:currentUser.id, type:lv_type.value, start_date:lv_start.value, end_date:lv_end.value, days, reason:lv_reason.value})});
-            alert("Applied");
-        }
-
-        async function loadAdminLeaves() {
-            const res = await fetch('/api/admin/leaves');
-            const data = await res.json();
-            document.querySelector('#leaveAdminTable tbody').innerHTML = data.map(l => `<tr><td>${l.full_name}</td><td>${l.days}d</td><td>${l.status}</td><td><button onclick="approveLeave(${l.id}, ${l.user_id}, ${l.days}, '${l.type}', '${l.email}', 'Approved')">Approve</button></td></tr>`).join('');
-        }
-
-        async function approveLeave(id, userId, days, type, email, status) {
-            await fetch('/api/admin/leaves/action', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id, userId, status, days, type, email})});
-            loadAdminLeaves();
-        }
-
-        function openManualAtt() { fetch('/api/admin/users').then(r => r.json()).then(data => { m_user_sel.innerHTML = data.map(u => `<option value="${u.id}">${u.full_name}</option>`).join(''); document.getElementById('manualAttModal').style.display='flex'; }); }
+        function editUser(u) { edit_u_id.value = u.id; u_fn.value = u.full_name; u_em.value = u.email; u_un.value = u.username; u_role.value = u.role; u_bal.value = u.leave_balance; document.getElementById('userModal').style.display='flex'; }
+        function openUserForm() { edit_u_id.value = ''; document.getElementById('userModal').style.display='flex'; }
         function closeModal(id) { document.getElementById(id).style.display='none'; }
         
         async function handleClock(type) {
