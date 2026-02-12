@@ -12,15 +12,14 @@
         .sidebar { width: 280px; background: #fff; border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 20px 0; }
         .logo-box { padding: 0 20px 20px; text-align: center; border-bottom: 1px solid var(--border); }
         .logo-box img { max-height: 80px; }
-        .nav-item { padding: 12px 25px; cursor: pointer; display: flex; align-items: center; gap: 10px; color: var(--text); border-radius: 0 25px 25px 0; margin-right: 10px; transition: 0.2s; }
+        .nav-item { padding: 12px 25px; cursor: pointer; display: flex; align-items: center; gap: 10px; color: var(--text); border-radius: 0 25px 25px 0; margin-right: 10px; }
         .nav-item.active { background: #f0fdf4; color: var(--primary); font-weight: bold; }
         .content { flex: 1; overflow-y: auto; padding: 30px; }
         .card { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 25px; }
         .btn { padding: 10px 15px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
         .btn-primary { background: var(--primary); color: white; }
-        .btn-info { background: #3498db; color: white; }
         .btn-danger { background: #e74c3c; color: white; }
-        input, select { padding: 10px; border: 1px solid var(--border); border-radius: 8px; margin: 5px 0; }
+        input, select, textarea { padding: 10px; border: 1px solid var(--border); border-radius: 8px; margin: 5px 0; width: 100%; box-sizing: border-box; }
         table { width: 100%; border-collapse: collapse; margin-top: 15px; }
         th, td { padding: 12px; border-bottom: 1px solid var(--border); text-align: left; }
         #login-screen { position: fixed; inset: 0; background: #fff; z-index: 9999; display: flex; align-items: center; justify-content: center; }
@@ -31,20 +30,21 @@
     <div id="login-screen">
         <div class="card" style="width: 350px; text-align: center;">
             <img src="logo.png" style="max-height: 80px; margin-bottom: 15px;">
-            <input type="text" id="l_un" placeholder="Username" style="width:100%">
-            <input type="password" id="l_pw" placeholder="Password" style="width:100%">
+            <input type="text" id="l_un" placeholder="Username">
+            <input type="password" id="l_pw" placeholder="Password">
             <button class="btn btn-primary" style="width:100%" onclick="login()">Sign In</button>
         </div>
     </div>
 
     <div class="sidebar" id="sidebar" style="display:none;">
         <div class="logo-box"><img src="logo.png"></div>
-        <div class="nav-item active" onclick="showSection('attendance')"><i class="fas fa-clock"></i> Attendance Log</div>
+        <div class="nav-item active" onclick="showSection('attendance')"><i class="fas fa-clock"></i> Attendance</div>
+        <div class="nav-item" onclick="showSection('requests')"><i class="fas fa-hand-holding-usd"></i> Leave & Loan</div>
         <div id="admin-nav" style="display:none;">
-            <div class="nav-item" onclick="showSection('user-manage')"><i class="fas fa-users-cog"></i> User Management</div>
+            <div class="nav-item" onclick="showSection('admin-manage')"><i class="fas fa-tasks"></i> Admin Approvals</div>
             <div class="nav-item" onclick="showSection('salary')"><i class="fas fa-money-bill-wave"></i> Salary Hub</div>
         </div>
-        <div class="nav-item" onclick="logout()" style="margin-top:auto; color:#e74c3c;"><i class="fas fa-sign-out-alt"></i> Logout</div>
+        <div class="nav-item" onclick="logout()" style="margin-top:auto; color:#e74c3c;"><i class="fas fa-power-off"></i> Logout</div>
     </div>
 
     <div class="content" id="content" style="display:none;">
@@ -54,36 +54,24 @@
                 <button class="btn" style="background: #fff; color: var(--primary);" onclick="handleClock('Check-In')">Clock In</button>
                 <button class="btn" style="background: rgba(255,255,255,0.2); color: #fff;" onclick="handleClock('Check-Out')">Clock Out</button>
             </div>
-            <div class="card">
-                <div style="display:flex; justify-content:space-between;">
-                    <h3>Attendance History</h3>
-                    <div>
-                        <select id="f_month"><option value="">Filter Month</option><option>February</option><option>January</option></select>
-                        <button class="btn btn-info" onclick="loadAttendance()">Filter</button>
-                        <button class="btn btn-primary" onclick="exportCSV('attTable')">Export Excel</button>
-                    </div>
-                </div>
-                <table id="attTable">
-                    <thead><tr><th>Name</th><th>Action</th><th>Time</th><th>Map</th></tr></thead>
-                    <tbody></tbody>
-                </table>
-            </div>
-            <div id="map" style="height:300px; border-radius:15px; border:1px solid var(--border);"></div>
+            <div id="map" style="height:300px; border-radius:15px; margin-top:20px;"></div>
         </div>
 
-        <div id="user-manage-section" class="section" style="display:none;">
+        <div id="requests-section" class="section" style="display:none;">
             <div class="card">
-                <h3>Employee Directory</h3>
-                <div style="display:grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap:10px;">
-                    <input type="text" id="nu_fn" placeholder="Full Name">
-                    <input type="email" id="nu_em" placeholder="Email">
-                    <input type="text" id="nu_un" placeholder="Username">
-                    <input type="password" id="nu_pw" placeholder="Password">
-                    <input type="number" id="nu_sal" placeholder="Monthly Salary">
-                </div>
-                <button class="btn btn-primary" style="margin-top:10px;" onclick="createUser()">Add Employee</button>
-                <table id="userTable">
-                    <thead><tr><th>Name</th><th>Email</th><th>Salary</th><th>Actions</th></tr></thead>
+                <h3>Request Leave / Loan</h3>
+                <select id="req_cat" onchange="toggleReqFields()"><option value="leave">Leave Request</option><option value="loan">Loan Request</option></select>
+                <div id="leave_fields"><input type="number" id="l_days" placeholder="Number of Days"><textarea id="l_reason" placeholder="Leave Reason"></textarea></div>
+                <div id="loan_fields" style="display:none;"><input type="number" id="lo_amt" placeholder="Loan Amount (PKR)"><textarea id="lo_reason" placeholder="Loan Purpose"></textarea></div>
+                <button class="btn btn-primary" onclick="submitRequest()">Submit Request</button>
+            </div>
+        </div>
+
+        <div id="admin-manage-section" class="section" style="display:none;">
+            <div class="card">
+                <h3>Pending Approvals</h3>
+                <table id="reqTable">
+                    <thead><tr><th>User</th><th>Category</th><th>Details</th><th>Value</th><th>Action</th></tr></thead>
                     <tbody></tbody>
                 </table>
             </div>
@@ -91,9 +79,9 @@
 
         <div id="salary-section" class="section" style="display:none;">
             <div class="card">
-                <h3>Salary Disbursement</h3>
+                <h3>Monthly Payroll</h3>
                 <table id="salaryTable">
-                    <thead><tr><th>Name</th><th>Base Salary</th><th>Present Days</th><th>Net Pay</th><th>Action</th></tr></thead>
+                    <thead><tr><th>Name</th><th>Salary</th><th>Present</th><th>Net</th><th>Action</th></tr></thead>
                     <tbody></tbody>
                 </table>
             </div>
@@ -104,12 +92,11 @@
     <script>
         let currentUser = JSON.parse(localStorage.getItem('user'));
         setInterval(() => document.getElementById('clock').innerText = new Date().toLocaleTimeString('en-GB'), 1000);
-
         if(currentUser) initApp();
 
         async function login() {
             const res = await fetch('/api/login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username:l_un.value, password:l_pw.value})});
-            if(!res.ok) return alert("Wrong Credentials");
+            if(!res.ok) return alert("Login Failed");
             localStorage.setItem('user', JSON.stringify(await res.json()));
             location.reload();
         }
@@ -119,63 +106,45 @@
             document.getElementById('sidebar').style.display='flex';
             document.getElementById('content').style.display='block';
             if(currentUser.role === 'admin') document.getElementById('admin-nav').style.display='block';
-            loadAttendance();
         }
 
         function showSection(id) {
             document.querySelectorAll('.section').forEach(s => s.style.display='none');
             document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
             document.getElementById(id+'-section').style.display='block';
+            if(id === 'admin-manage') loadRequests();
             if(id === 'salary') loadSalaryHub();
-            if(id === 'user-manage') loadUsers();
-            if(id === 'attendance') loadAttendance();
         }
 
-        async function loadAttendance() {
-            const m = document.getElementById('f_month').value;
-            const res = await fetch(`/api/admin/records?month=${m}`);
+        function toggleReqFields() {
+            const cat = document.getElementById('req_cat').value;
+            document.getElementById('leave_fields').style.display = cat === 'leave' ? 'block' : 'none';
+            document.getElementById('loan_fields').style.display = cat === 'loan' ? 'block' : 'none';
+        }
+
+        async function submitRequest() {
+            const cat = document.getElementById('req_cat').value;
+            const url = cat === 'leave' ? '/api/request/leave' : '/api/request/loan';
+            const body = cat === 'leave' ? {userId:currentUser.id, type:'Casual', reason:l_reason.value, days:l_days.value} : {userId:currentUser.id, amount:lo_amt.value, reason:lo_reason.value};
+            await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+            alert("Request Submitted!");
+        }
+
+        async function loadRequests() {
+            const res = await fetch('/api/admin/requests');
             const data = await res.json();
-            document.querySelector('#attTable tbody').innerHTML = data.map(r => `<tr><td>${r.username}</td><td><b>${r.type}</b></td><td>${r.time}</td><td><a href="https://www.google.com/maps?q=${r.lat},${r.lon}" target="_blank">View</a></td></tr>`).join('');
+            document.querySelector('#reqTable tbody').innerHTML = data.map(r => `<tr><td>${r.full_name}</td><td>${r.category}</td><td>${r.reason}</td><td>${r.val}</td><td><button class="btn btn-primary" onclick="actionReq('${r.category}', ${r.id}, ${r.user_id}, ${r.val}, 'Approved')">Approve</button></td></tr>`).join('');
         }
 
-        async function loadUsers() {
-            const res = await fetch('/api/admin/users');
-            const data = await res.json();
-            document.querySelector('#userTable tbody').innerHTML = data.map(u => `<tr><td>${u.full_name}</td><td>${u.email}</td><td>${u.base_salary}</td><td><button class="btn btn-danger" onclick="deleteUser(${u.id})">Delete</button></td></tr>`).join('');
-        }
-
-        async function loadSalaryHub() {
-            const resUsers = await fetch('/api/admin/users');
-            const users = await resUsers.json();
-            const resAtt = await fetch('/api/admin/records');
-            const att = await resAtt.json();
-
-            document.querySelector('#salaryTable tbody').innerHTML = users.filter(u => u.role !== 'admin').map(u => {
-                const presentDays = att.filter(a => a.user_id === u.id && a.type === 'Check-In').length;
-                const netPay = ((u.base_salary / 30) * presentDays).toFixed(0);
-                return `<tr><td>${u.full_name}</td><td>${u.base_salary}</td><td>${presentDays}</td><td><b>PKR ${netPay}</b></td><td><button class="btn btn-primary" onclick="paySalary(${u.id}, '${u.full_name}', '${u.email}', ${netPay})">Disburse</button></td></tr>`;
-            }).join('');
-        }
-
-        async function paySalary(id, name, email, amount) {
-            if(confirm(`Pay PKR ${amount} to ${name}?`)) {
-                await fetch('/api/admin/disburse', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId:id, month:'February', amount, email, name})});
-                alert("Payment recorded and Payslip emailed!");
-            }
+        async function actionReq(category, id, userId, val, status) {
+            await fetch('/api/admin/approve', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({category, id, userId, val, status})});
+            loadRequests();
         }
 
         function handleClock(type) {
             navigator.geolocation.getCurrentPosition(pos => {
-                fetch('/api/attendance', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId:currentUser.id, type, lat:pos.coords.latitude, lon:pos.coords.longitude})}).then(() => { alert("Marked!"); loadAttendance(); });
+                fetch('/api/attendance', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId:currentUser.id, type, lat:pos.coords.latitude, lon:pos.coords.longitude})}).then(() => alert("Attendance Marked!"));
             });
-        }
-
-        function exportCSV(id) {
-            const rows = Array.from(document.getElementById(id).rows).map(r => Array.from(r.cells).map(c => c.innerText).join(","));
-            const a = document.createElement('a');
-            a.href = window.URL.createObjectURL(new Blob([rows.join("\n")], {type:'text/csv'}));
-            a.download = 'LSAF_HR_Report.csv';
-            a.click();
         }
 
         function logout() { localStorage.clear(); location.reload(); }
