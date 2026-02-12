@@ -40,8 +40,8 @@
         <input type="text" id="u_fn" placeholder="Full Name">
         <input type="email" id="u_em" placeholder="Email">
         <input type="text" id="u_un" placeholder="Username">
-        <input type="password" id="u_pw" placeholder="Password (New Only)">
-        <select id="u_role"><option value="employee">employee</option><option value="admin">admin</option></select>
+        <input type="password" id="u_pw" placeholder="Password">
+        <select id="u_role"><option>employee</option><option>admin</option></select>
         <input type="number" id="u_bal" placeholder="Leave Balance">
         <button class="btn btn-primary" onclick="saveUser()">Save</button>
         <button class="btn" onclick="closeModal('userModal')">Cancel</button>
@@ -80,14 +80,11 @@
 
         <div id="attendance-section" class="section" style="display:none;">
             <div class="card">
-                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
                     <h3>Attendance Logs</h3>
                     <div style="display:flex; gap:5px;">
                         <select id="f_user_sel" style="width:140px;"><option value="">All Staff</option></select>
-                        <select id="f_month_sel" style="width:110px;">
-                            <option value="">All Months</option>
-                            <option value="January">January</option><option value="February">February</option><option value="March">March</option>
-                        </select>
+                        <select id="f_month_sel" style="width:110px;"><option value="">All Months</option><option>January</option><option>February</option></select>
                         <button class="btn btn-primary" onclick="loadAttendance()">Filter</button>
                         <button class="btn btn-primary" onclick="openManualAtt()">Manual</button>
                         <button class="btn" onclick="exportCSV('attTable')">CSV</button>
@@ -101,7 +98,7 @@
             <div class="card">
                 <h3>My Balance: <span id="leave-bal-text">0</span> Days</h3>
                 <label><input type="checkbox" id="lv_is_half" onchange="toggleHalfDay()"> Half Day</label>
-                <div id="date_inputs" style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
                     <input type="date" id="lv_start" onchange="calcLeaveDays()">
                     <input type="date" id="lv_end" onchange="calcLeaveDays()">
                 </div>
@@ -109,6 +106,7 @@
                 <textarea id="lv_reason" placeholder="Reason"></textarea>
                 <button class="btn btn-primary" onclick="applyLeave()">Submit</button>
             </div>
+            <div class="card" id="admin-leave-manage" style="display:none;"><h3>Admin: Leaves</h3><table id="leaveAdminTable"><tbody></tbody></table></div>
         </div>
 
         <div id="user-manage-section" class="section" style="display:none;">
@@ -139,7 +137,7 @@
 
         async function login() {
             const res = await fetch('/api/login', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username:l_un.value, password:l_pw.value})});
-            if(!res.ok) return alert("Login Fail");
+            if(!res.ok) return alert("Fail");
             localStorage.setItem('user', JSON.stringify(await res.json()));
             location.reload();
         }
@@ -151,6 +149,7 @@
             document.getElementById('leave-bal-text').innerText = currentUser.leave_balance;
             if(currentUser.role === 'admin') {
                 document.getElementById('admin-nav').style.display='block';
+                document.getElementById('admin-leave-manage').style.display='block';
                 loadFilterUsers();
             }
             loadDashboard();
@@ -163,6 +162,7 @@
             if(id === 'dashboard') { loadDashboard(); setTimeout(() => dashMap.invalidateSize(), 400); }
             if(id === 'attendance') loadAttendance();
             if(id === 'user-manage') loadUsers();
+            if(id === 'leave') loadAdminLeaves();
         }
 
         async function loadDashboard() {
@@ -191,14 +191,13 @@
         async function loadFilterUsers() {
             const res = await fetch('/api/admin/users');
             const data = await res.json();
-            const options = '<option value="">All Staff</option>' + data.map(u => `<option value="${u.id}">${u.full_name}</option>`).join('');
-            document.getElementById('f_user_sel').innerHTML = options;
+            document.getElementById('f_user_sel').innerHTML = '<option value="">All Staff</option>' + data.map(u => `<option value="${u.id}">${u.full_name}</option>`).join('');
         }
 
         function toggleHalfDay() {
-            const isHalf = document.getElementById('lv_is_half').checked;
-            document.getElementById('lv_end').disabled = isHalf;
-            document.getElementById('lv_count').innerText = isHalf ? "0.5" : "0";
+            const h = document.getElementById('lv_is_half').checked;
+            document.getElementById('lv_end').disabled = h;
+            document.getElementById('lv_count').innerText = h ? "0.5" : "0";
         }
 
         function calcLeaveDays() {
@@ -212,64 +211,43 @@
             const days = parseFloat(document.getElementById('lv_count').innerText);
             await fetch('/api/leaves/apply', {method:'POST', headers:{'Content-Type':'application/json'}, 
             body:JSON.stringify({userId:currentUser.id, type:lv_type.value, start_date:lv_start.value, end_date:lv_end.value, days, reason:lv_reason.value})});
-            alert("Leave Applied");
+            alert("Applied");
+        }
+
+        async function loadAdminLeaves() {
+            const res = await fetch('/api/admin/leaves');
+            const data = await res.json();
+            document.querySelector('#leaveAdminTable tbody').innerHTML = data.map(l => `<tr><td>${l.full_name}</td><td>${l.start_date}</td><td>${l.end_date}</td><td>${l.days}</td><td>${l.status}</td><td><button onclick="approveLeave(${l.id}, ${l.user_id}, ${l.days}, '${l.type}', '${l.email}', 'Approved')">Approve</button></td></tr>`).join('');
+        }
+
+        async function approveLeave(id, userId, days, type, email, status) {
+            await fetch('/api/admin/leaves/action', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id, userId, status, days, type, email})});
+            loadAdminLeaves();
         }
 
         async function loadUsers() {
             const res = await fetch('/api/admin/users');
             const data = await res.json();
-            document.querySelector('#userTable tbody').innerHTML = data.map(u => `
-                <tr><td>${u.full_name}</td><td>${u.email}</td><td>${u.role}</td><td>${u.leave_balance}</td>
-                <td><button onclick='editUser(${JSON.stringify(u)})'>Edit</button> <button onclick='deleteUser(${u.id})'>Del</button></td></tr>
-            `).join('');
+            document.querySelector('#userTable tbody').innerHTML = data.map(u => `<tr><td>${u.full_name}</td><td>${u.email}</td><td>${u.role}</td><td>${u.leave_balance}</td><td><button onclick='editUser(${JSON.stringify(u)})'>Edit</button> <button onclick='deleteUser(${u.id})'>Del</button></td></tr>`).join('');
         }
 
+        function openUserForm() { edit_u_id.value = ''; uModalTitle.innerText = "Add Employee"; document.getElementById('userModal').style.display='flex'; }
+
         function editUser(u) {
-            document.getElementById('edit_u_id').value = u.id;
-            document.getElementById('u_fn').value = u.full_name;
-            document.getElementById('u_em').value = u.email;
-            document.getElementById('u_un').value = u.username;
-            document.getElementById('u_role').value = u.role;
-            document.getElementById('u_bal').value = u.leave_balance;
-            document.getElementById('uModalTitle').innerText = "Edit Employee";
+            edit_u_id.value = u.id; u_fn.value = u.full_name; u_em.value = u.email; u_un.value = u.username;
+            u_role.value = u.role; u_bal.value = u.leave_balance;
+            uModalTitle.innerText = "Edit Employee";
             document.getElementById('userModal').style.display='flex';
         }
 
         async function saveUser() {
-            const data = { 
-                id: edit_u_id.value, 
-                username: u_un.value, 
-                password: u_pw.value, 
-                full_name: u_fn.value, 
-                email: u_em.value, 
-                role: u_role.value, 
-                leave_balance: u_bal.value 
-            };
-            const res = await fetch('/api/admin/user/save', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)});
-            if(res.ok) { closeModal('userModal'); loadUsers(); }
+            const data = { id: edit_u_id.value, username: u_un.value, password: u_pw.value, full_name: u_fn.value, email: u_em.value, role: u_role.value, leave_balance: u_bal.value };
+            await fetch('/api/admin/user/save', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)});
+            closeModal('userModal'); loadUsers();
         }
 
-        function openUserForm() { 
-            document.getElementById('edit_u_id').value = ''; 
-            document.getElementById('uModalTitle').innerText = "Add Employee";
-            document.getElementById('userModal').style.display='flex'; 
-        }
-
-        function openManualAtt() { 
-            fetch('/api/admin/users').then(r => r.json()).then(data => {
-                document.getElementById('m_user_sel').innerHTML = data.map(u => `<option value="${u.id}">${u.full_name}</option>`).join('');
-                document.getElementById('manualAttModal').style.display='flex'; 
-            });
-        }
-
-        async function submitManualAtt() {
-            await fetch('/api/admin/attendance/action', {method:'POST', headers:{'Content-Type':'application/json'}, 
-            body:JSON.stringify({userId:m_user_sel.value, type:m_type.value, time:m_time.value.replace('T', ' '), action:'manual'})});
-            closeModal('manualAttModal'); loadAttendance();
-        }
-
+        function openManualAtt() { fetch('/api/admin/users').then(r => r.json()).then(data => { m_user_sel.innerHTML = data.map(u => `<option value="${u.id}">${u.full_name}</option>`).join(''); document.getElementById('manualAttModal').style.display='flex'; }); }
         function closeModal(id) { document.getElementById(id).style.display='none'; }
-        
         async function handleClock(type) {
             navigator.geolocation.getCurrentPosition(pos => {
                 fetch('/api/attendance', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId:currentUser.id, type, lat:pos.coords.latitude, lon:pos.coords.longitude})}).then(() => { alert("Marked"); loadDashboard(); });
