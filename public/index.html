@@ -11,13 +11,14 @@
         body { font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; height: 100vh; background: var(--bg); overflow: hidden; }
         .sidebar { width: 260px; background: #fff; border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 20px 0; }
         .logo-box { padding: 0 20px 20px; text-align: center; border-bottom: 1px solid var(--border); }
-        .logo-box img { max-height: 70px; }
+        .logo-box img { max-height: 80px; }
         .nav-item { padding: 12px 25px; cursor: pointer; display: flex; align-items: center; gap: 10px; color: var(--text); border-radius: 0 25px 25px 0; margin-right: 10px; }
         .nav-item.active { background: #f0fdf4; color: var(--primary); font-weight: bold; }
         .content { flex: 1; overflow-y: auto; padding: 30px; }
         .card { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 25px; }
         .btn { padding: 8px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
         .btn-primary { background: var(--primary); color: white; }
+        .btn-danger { background: #e74c3c; color: white; }
         .modal { display:none; position:fixed; z-index:10000; inset:0; background:rgba(0,0,0,0.5); align-items:center; justify-content:center; }
         input, select, textarea { padding: 10px; border: 1px solid var(--border); border-radius: 8px; margin: 5px 0; width: 100%; box-sizing: border-box; }
         table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 13px; }
@@ -41,7 +42,7 @@
         <input type="text" id="u_fn" placeholder="Full Name">
         <input type="email" id="u_em" placeholder="Email">
         <input type="text" id="u_un" placeholder="Username">
-        <input type="password" id="u_pw" placeholder="Password">
+        <input type="password" id="u_pw" placeholder="Password (New Only)">
         <select id="u_role"><option value="employee">employee</option><option value="admin">admin</option></select>
         <input type="number" id="u_bal" placeholder="Leave Balance">
         <button class="btn btn-primary" onclick="saveUser()">Save</button>
@@ -49,7 +50,7 @@
     </div></div>
 
     <div id="manualAttModal" class="modal"><div class="card" style="width:400px;">
-        <h3>Manual Staff Entry</h3>
+        <h3>Manual Entry</h3>
         <select id="m_user_sel"></select>
         <select id="m_type"><option>Check-In</option><option>Check-Out</option></select>
         <input type="datetime-local" id="m_time">
@@ -60,18 +61,21 @@
     <div class="sidebar" id="sidebar" style="display:none;">
         <div class="logo-box"><img src="logo.png" style="max-height:70px;" onerror="this.src='UOL-Green-V1.png'"></div>
         <div class="nav-item active" onclick="showSection('dashboard')"><i class="fas fa-home"></i> Dashboard</div>
-        <div class="nav-item" onclick="showSection('attendance')"><i class="fas fa-clock"></i> Attendance</div>
+        <div class="nav-item" onclick="showSection('attendance')"><i class="fas fa-clock"></i> Attendance Log</div>
         <div class="nav-item" onclick="showSection('leave')"><i class="fas fa-calendar-day"></i> Leaves Hub</div>
         <div id="admin-nav" style="display:none;"><div class="nav-item" onclick="showSection('user-manage')"><i class="fas fa-users-cog"></i> User Management</div></div>
         <div class="nav-item" onclick="logout()" style="margin-top:auto; color:#e74c3c;"><i class="fas fa-power-off"></i> Logout</div>
     </div>
 
     <div class="content" id="content" style="display:none;">
+        
         <div id="dashboard-section" class="section">
             <div class="card" style="background: linear-gradient(135deg, #1a5d1a, #27ae60); color: #fff; text-align: center; padding: 25px;">
                 <h1 id="clock" style="margin:0">00:00:00</h1>
-                <div style="margin:15px 0;"><button class="btn" style="background:#fff; color:var(--primary)" onclick="handleClock('Check-In')">Clock In</button>
-                <button class="btn" style="background:rgba(255,255,255,0.2); color:#fff" onclick="handleClock('Check-Out')">Clock Out</button></div>
+                <div style="margin:15px 0;">
+                    <button class="btn" style="background:#fff; color:var(--primary)" onclick="handleClock('Check-In')">Clock In</button>
+                    <button class="btn" style="background:rgba(255,255,255,0.2); color:#fff" onclick="handleClock('Check-Out')">Clock Out</button>
+                </div>
             </div>
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
                 <div class="card"><h3>Recent Activity</h3><table id="dashAttTable"><tbody></tbody></table></div>
@@ -97,20 +101,23 @@
         <div id="leave-section" class="section" style="display:none;">
             <div class="card">
                 <h3>My Balance: <span id="leave-bal-text">0</span> Days</h3>
-                <label><input type="checkbox" id="lv_is_half" onchange="toggleHalfDay()"> Half Day</label>
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;"><input type="date" id="lv_start" onchange="calcLeaveDays()"><input type="date" id="lv_end" onchange="calcLeaveDays()"></div>
-                <p>Days: <b id="lv_count">0</b> | <select id="lv_type" style="width:auto"><option>Annual Leave</option><option>Without Pay Leave</option></select></p>
+                <label><input type="checkbox" id="lv_is_half" onchange="toggleHalfDay()"> Half Day Request</label>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                    <input type="date" id="lv_start" onchange="calcLeaveDays()">
+                    <input type="date" id="lv_end" onchange="calcLeaveDays()">
+                </div>
+                <p>Days: <b id="lv_count">0</b> | Type: <select id="lv_type" style="width:auto"><option>Annual Leave</option><option>Without Pay Leave</option></select></p>
                 <textarea id="lv_reason" placeholder="Reason"></textarea>
                 <button class="btn btn-primary" onclick="applyLeave()">Submit</button>
             </div>
-            <div class="card" id="admin-leave-manage" style="display:none;"><h3>Admin: Leaves</h3><table id="leaveAdminTable"><thead><tr><th>Name</th><th>Start</th><th>End</th><th>Action</th></tr></thead><tbody></tbody></table></div>
+            <div class="card" id="admin-leave-manage" style="display:none;"><h3>Admin: Leave Management</h3><table id="leaveAdminTable"><tbody></tbody></table></div>
         </div>
 
         <div id="user-manage-section" class="section" style="display:none;">
             <div class="card">
                 <div style="display:flex; justify-content:space-between;">
                     <h3>Employee Directory</h3>
-                    <button class="btn btn-primary" onclick="openUserForm()">+ Add New Employee</button>
+                    <button class="btn btn-primary" onclick="openUserForm()">+ Add New</button>
                 </div>
                 <table id="userTable"><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Action</th></tr></thead><tbody></tbody></table>
             </div>
@@ -130,7 +137,7 @@
 
         async function login() {
             const res = await fetch('/api/login', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username:l_un.value, password:l_pw.value})});
-            if(!res.ok) return alert("Login Failed");
+            if(!res.ok) return alert("Login Fail");
             localStorage.setItem('user', JSON.stringify(await res.json()));
             location.reload();
         }
@@ -184,6 +191,64 @@
             document.getElementById('f_user_sel').innerHTML = '<option value="">All Staff</option>' + data.map(u => `<option value="${u.id}">${u.full_name}</option>`).join('');
         }
 
+        async function saveUser() {
+            const data = { 
+                id: document.getElementById('edit_u_id').value, 
+                username: document.getElementById('u_un').value, 
+                password: document.getElementById('u_pw').value, 
+                full_name: document.getElementById('u_fn').value, 
+                email: document.getElementById('u_em').value, 
+                role: document.getElementById('u_role').value, 
+                leave_balance: document.getElementById('u_bal').value 
+            };
+            
+            try {
+                const res = await fetch('/api/admin/user/save', {
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify(data)
+                });
+                
+                if (res.ok) {
+                    alert("Saved Successfully");
+                    closeModal('userModal');
+                    loadUsers();
+                } else {
+                    const errData = await res.json();
+                    alert("Save Error: " + (errData.error || "Unknown error"));
+                }
+            } catch (err) {
+                alert("Network/Save Error: " + err.message);
+            }
+        }
+
+        async function loadUsers() {
+            const res = await fetch('/api/admin/users');
+            const data = await res.json();
+            document.querySelector('#userTable tbody').innerHTML = data.map(u => `<tr><td>${u.full_name}</td><td>${u.email}</td><td>${u.role}</td><td><button onclick='editUser(${JSON.stringify(u)})'>Edit</button> <button onclick="deleteUser(${u.id})">Del</button></td></tr>`).join('');
+        }
+
+        function editUser(u) {
+            document.getElementById('edit_u_id').value = u.id;
+            document.getElementById('u_fn').value = u.full_name;
+            document.getElementById('u_em').value = u.email;
+            document.getElementById('u_un').value = u.username;
+            document.getElementById('u_role').value = u.role;
+            document.getElementById('u_bal').value = u.leave_balance;
+            document.getElementById('uModalTitle').innerText = "Edit Employee";
+            document.getElementById('userModal').style.display = 'flex';
+        }
+
+        function openUserForm() {
+            document.getElementById('edit_u_id').value = '';
+            document.getElementById('u_fn').value = '';
+            document.getElementById('u_em').value = '';
+            document.getElementById('u_un').value = '';
+            document.getElementById('u_pw').value = '';
+            document.getElementById('uModalTitle').innerText = "Add Employee";
+            document.getElementById('userModal').style.display = 'flex';
+        }
+
         function toggleHalfDay() {
             const h = document.getElementById('lv_is_half').checked;
             document.getElementById('lv_end').disabled = h;
@@ -214,29 +279,6 @@
             loadAdminLeaves();
         }
 
-        async function loadUsers() {
-            const res = await fetch('/api/admin/users');
-            const data = await res.json();
-            document.querySelector('#userTable tbody').innerHTML = data.map(u => `<tr><td>${u.full_name}</td><td>${u.email}</td><td>${u.role}</td><td><button onclick='editUser(${JSON.stringify(u)})'>Edit</button></td></tr>`).join('');
-        }
-
-        function editUser(u) {
-            edit_u_id.value = u.id; u_fn.value = u.full_name; u_em.value = u.email; u_un.value = u.username;
-            u_role.value = u.role; u_bal.value = u.leave_balance;
-            document.getElementById('userModal').style.display='flex';
-        }
-
-        async function saveUser() {
-            const data = { id: edit_u_id.value, username: u_un.value, password: u_pw.value, full_name: u_fn.value, email: u_em.value, role: u_role.value, leave_balance: u_bal.value };
-            const res = await fetch('/api/admin/user/save', {
-                method:'POST', 
-                headers:{'Content-Type':'application/json'}, 
-                body:JSON.stringify(data)
-            });
-            if(res.ok) { closeModal('userModal'); loadUsers(); } else { alert("Save Error"); }
-        }
-
-        function openUserForm() { edit_u_id.value = ''; document.getElementById('userModal').style.display='flex'; }
         function openManualAtt() { fetch('/api/admin/users').then(r => r.json()).then(data => { m_user_sel.innerHTML = data.map(u => `<option value="${u.id}">${u.full_name}</option>`).join(''); document.getElementById('manualAttModal').style.display='flex'; }); }
         function closeModal(id) { document.getElementById(id).style.display='none'; }
         
@@ -245,6 +287,9 @@
                 fetch('/api/attendance', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId:currentUser.id, type, lat:pos.coords.latitude, lon:pos.coords.longitude})}).then(() => { alert("Marked"); loadDashboard(); });
             });
         }
+
+        async function deleteAtt(id) { if(confirm("Delete Log?")) { await fetch('/api/admin/attendance/action', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id, action:'delete'})}); loadAttendance(); } }
+        async function deleteUser(id) { if(confirm("Delete User?")) { await fetch('/api/admin/user/'+id, {method:'DELETE'}); loadUsers(); } }
         function logout() { localStorage.clear(); location.reload(); }
     </script>
 </body>
