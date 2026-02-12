@@ -17,7 +17,6 @@
         .card { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 25px; }
         .btn { padding: 8px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 12px; }
         .btn-primary { background: var(--primary); color: white; }
-        .btn-danger { background: #e74c3c; color: white; }
         .modal { display:none; position:fixed; z-index:10000; inset:0; background:rgba(0,0,0,0.5); align-items:center; justify-content:center; }
         input, select, textarea { padding: 10px; border: 1px solid var(--border); border-radius: 8px; margin: 5px 0; width: 100%; box-sizing: border-box; }
         table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 13px; }
@@ -42,7 +41,7 @@
         <input type="email" id="u_em" placeholder="Email">
         <input type="text" id="u_un" placeholder="Username">
         <input type="password" id="u_pw" placeholder="Password (New Only)">
-        <select id="u_role"><option>employee</option><option>admin</option></select>
+        <select id="u_role"><option value="employee">employee</option><option value="admin">admin</option></select>
         <input type="number" id="u_bal" placeholder="Leave Balance">
         <button class="btn btn-primary" onclick="saveUser()">Save</button>
         <button class="btn" onclick="closeModal('userModal')">Cancel</button>
@@ -67,7 +66,6 @@
     </div>
 
     <div class="content" id="content" style="display:none;">
-        
         <div id="dashboard-section" class="section">
             <div class="card" style="background: linear-gradient(135deg, #1a5d1a, #27ae60); color: #fff; text-align: center; padding: 25px;">
                 <h1 id="clock" style="margin:0">00:00:00</h1>
@@ -76,9 +74,8 @@
             </div>
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
                 <div class="card"><h3>Recent Activity</h3><table id="dashAttTable"><tbody></tbody></table></div>
-                <div id="dashMap" style="height:300px; border-radius:15px;"></div>
+                <div id="dashMap" style="height:300px; border-radius:15px; width:100%;"></div>
             </div>
-            <div class="card" id="admin-leave-requests" style="display:none;"><h3>Pending Leaves</h3><table id="dashLeaveTable"><tbody></tbody></table></div>
         </div>
 
         <div id="attendance-section" class="section" style="display:none;">
@@ -87,13 +84,16 @@
                     <h3>Attendance Logs</h3>
                     <div style="display:flex; gap:5px;">
                         <select id="f_user_sel" style="width:140px;"><option value="">All Staff</option></select>
-                        <select id="f_month_sel" style="width:110px;"><option value="">All Months</option><option>January</option><option>February</option></select>
+                        <select id="f_month_sel" style="width:110px;">
+                            <option value="">All Months</option>
+                            <option value="January">January</option><option value="February">February</option><option value="March">March</option>
+                        </select>
                         <button class="btn btn-primary" onclick="loadAttendance()">Filter</button>
                         <button class="btn btn-primary" onclick="openManualAtt()">Manual</button>
                         <button class="btn" onclick="exportCSV('attTable')">CSV</button>
                     </div>
                 </div>
-                <table id="attTable"><thead><tr><th>Name</th><th>Type</th><th>Time</th><th>Location</th><th>Admin</th></tr></thead><tbody></tbody></table>
+                <table id="attTable"><thead><tr><th>Name</th><th>Type</th><th>Time</th><th>Location</th><th>Action</th></tr></thead><tbody></tbody></table>
             </div>
         </div>
 
@@ -101,7 +101,7 @@
             <div class="card">
                 <h3>My Balance: <span id="leave-bal-text">0</span> Days</h3>
                 <label><input type="checkbox" id="lv_is_half" onchange="toggleHalfDay()"> Half Day</label>
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                <div id="date_inputs" style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
                     <input type="date" id="lv_start" onchange="calcLeaveDays()">
                     <input type="date" id="lv_end" onchange="calcLeaveDays()">
                 </div>
@@ -109,7 +109,6 @@
                 <textarea id="lv_reason" placeholder="Reason"></textarea>
                 <button class="btn btn-primary" onclick="applyLeave()">Submit</button>
             </div>
-            <div class="card" id="admin-leave-manage" style="display:none;"><h3>Leave Management</h3><table id="leaveAdminTable"><tbody></tbody></table></div>
         </div>
 
         <div id="user-manage-section" class="section" style="display:none;">
@@ -122,7 +121,7 @@
                         <button class="btn btn-primary" onclick="openUserForm()">+ Add New</button>
                     </div>
                 </div>
-                <table id="userTable"><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Action</th></tr></thead><tbody></tbody></table>
+                <table id="userTable"><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Balance</th><th>Action</th></tr></thead><tbody></tbody></table>
             </div>
         </div>
     </div>
@@ -140,7 +139,7 @@
 
         async function login() {
             const res = await fetch('/api/login', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username:l_un.value, password:l_pw.value})});
-            if(!res.ok) return alert("Fail");
+            if(!res.ok) return alert("Login Fail");
             localStorage.setItem('user', JSON.stringify(await res.json()));
             location.reload();
         }
@@ -152,8 +151,6 @@
             document.getElementById('leave-bal-text').innerText = currentUser.leave_balance;
             if(currentUser.role === 'admin') {
                 document.getElementById('admin-nav').style.display='block';
-                document.getElementById('admin-leave-requests').style.display='block';
-                document.getElementById('admin-leave-manage').style.display='block';
                 loadFilterUsers();
             }
             loadDashboard();
@@ -166,7 +163,6 @@
             if(id === 'dashboard') { loadDashboard(); setTimeout(() => dashMap.invalidateSize(), 400); }
             if(id === 'attendance') loadAttendance();
             if(id === 'user-manage') loadUsers();
-            if(id === 'leave') loadAdminLeaves();
         }
 
         async function loadDashboard() {
@@ -180,13 +176,6 @@
                 }
                 return `<tr><td>${r.username}</td><td>${r.type}</td><td>${r.time}</td></tr>`;
             }).join('');
-            if(currentUser.role === 'admin') {
-                const lRes = await fetch('/api/admin/leaves');
-                const lData = await lRes.json();
-                document.querySelector('#dashLeaveTable tbody').innerHTML = lData.filter(l => l.status === 'Pending').map(l => `
-                    <tr><td>${l.full_name}</td><td>${l.days}d</td><td><button class="btn btn-primary" onclick="approveLeave(${l.id}, ${l.user_id}, ${l.days}, '${l.type}', '${l.email}', 'Approved')">Approve</button></td></tr>
-                `).join('');
-            }
         }
 
         async function loadAttendance() {
@@ -194,7 +183,7 @@
             const data = await res.json();
             document.querySelector('#attTable tbody').innerHTML = data.map(r => `
                 <tr><td>${r.username}</td><td>${r.type}</td><td>${r.time}</td>
-                <td><a href="http://googleusercontent.com/maps.google.com/3{r.lat},${r.lon}" target="_blank">Map</a></td>
+                <td><a href="http://googleusercontent.com/maps.google.com/search?q=${r.lat},${r.lon}" target="_blank">View</a></td>
                 <td><button onclick="editAtt(${r.id}, '${r.type}', '${r.time}')">Edit</button> <button onclick="deleteAtt(${r.id})">Del</button></td></tr>
             `).join('');
         }
@@ -202,13 +191,14 @@
         async function loadFilterUsers() {
             const res = await fetch('/api/admin/users');
             const data = await res.json();
-            document.getElementById('f_user_sel').innerHTML = '<option value="">All Staff</option>' + data.map(u => `<option value="${u.id}">${u.full_name}</option>`).join('');
+            const options = '<option value="">All Staff</option>' + data.map(u => `<option value="${u.id}">${u.full_name}</option>`).join('');
+            document.getElementById('f_user_sel').innerHTML = options;
         }
 
         function toggleHalfDay() {
-            const h = document.getElementById('lv_is_half').checked;
-            document.getElementById('lv_end').disabled = h;
-            document.getElementById('lv_count').innerText = h ? "0.5" : "0";
+            const isHalf = document.getElementById('lv_is_half').checked;
+            document.getElementById('lv_end').disabled = isHalf;
+            document.getElementById('lv_count').innerText = isHalf ? "0.5" : "0";
         }
 
         function calcLeaveDays() {
@@ -222,32 +212,64 @@
             const days = parseFloat(document.getElementById('lv_count').innerText);
             await fetch('/api/leaves/apply', {method:'POST', headers:{'Content-Type':'application/json'}, 
             body:JSON.stringify({userId:currentUser.id, type:lv_type.value, start_date:lv_start.value, end_date:lv_end.value, days, reason:lv_reason.value})});
-            alert("Sent");
+            alert("Leave Applied");
         }
 
         async function loadUsers() {
             const res = await fetch('/api/admin/users');
             const data = await res.json();
             document.querySelector('#userTable tbody').innerHTML = data.map(u => `
-                <tr><td>${u.full_name}</td><td>${u.email}</td><td>${u.role}</td>
+                <tr><td>${u.full_name}</td><td>${u.email}</td><td>${u.role}</td><td>${u.leave_balance}</td>
                 <td><button onclick='editUser(${JSON.stringify(u)})'>Edit</button> <button onclick='deleteUser(${u.id})'>Del</button></td></tr>
             `).join('');
         }
 
         function editUser(u) {
-            edit_u_id.value = u.id; u_fn.value = u.full_name; u_em.value = u.email; u_un.value = u.username;
-            u_role.value = u.role; u_bal.value = u.leave_balance;
+            document.getElementById('edit_u_id').value = u.id;
+            document.getElementById('u_fn').value = u.full_name;
+            document.getElementById('u_em').value = u.email;
+            document.getElementById('u_un').value = u.username;
+            document.getElementById('u_role').value = u.role;
+            document.getElementById('u_bal').value = u.leave_balance;
+            document.getElementById('uModalTitle').innerText = "Edit Employee";
             document.getElementById('userModal').style.display='flex';
         }
 
         async function saveUser() {
-            const data = { id: edit_u_id.value, username: u_un.value, password: u_pw.value, full_name: u_fn.value, email: u_em.value, role: u_role.value, leave_balance: u_bal.value };
-            await fetch('/api/admin/user/save', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)});
-            closeModal('userModal'); loadUsers();
+            const data = { 
+                id: edit_u_id.value, 
+                username: u_un.value, 
+                password: u_pw.value, 
+                full_name: u_fn.value, 
+                email: u_em.value, 
+                role: u_role.value, 
+                leave_balance: u_bal.value 
+            };
+            const res = await fetch('/api/admin/user/save', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)});
+            if(res.ok) { closeModal('userModal'); loadUsers(); }
         }
 
-        function openManualAtt() { loadFilterUsers().then(() => { m_user_sel.innerHTML = f_user_sel.innerHTML; document.getElementById('manualAttModal').style.display='flex'; }); }
+        function openUserForm() { 
+            document.getElementById('edit_u_id').value = ''; 
+            document.getElementById('uModalTitle').innerText = "Add Employee";
+            document.getElementById('userModal').style.display='flex'; 
+        }
+
+        function openManualAtt() { 
+            fetch('/api/admin/users').then(r => r.json()).then(data => {
+                document.getElementById('m_user_sel').innerHTML = data.map(u => `<option value="${u.id}">${u.full_name}</option>`).join('');
+                document.getElementById('manualAttModal').style.display='flex'; 
+            });
+        }
+
+        async function submitManualAtt() {
+            await fetch('/api/admin/attendance/action', {method:'POST', headers:{'Content-Type':'application/json'}, 
+            body:JSON.stringify({userId:m_user_sel.value, type:m_type.value, time:m_time.value.replace('T', ' '), action:'manual'})});
+            closeModal('manualAttModal'); loadAttendance();
+        }
+
         function closeModal(id) { document.getElementById(id).style.display='none'; }
+        
         async function handleClock(type) {
             navigator.geolocation.getCurrentPosition(pos => {
                 fetch('/api/attendance', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({userId:currentUser.id, type, lat:pos.coords.latitude, lon:pos.coords.longitude})}).then(() => { alert("Marked"); loadDashboard(); });
@@ -256,7 +278,7 @@
         function exportCSV(id) {
             const rows = Array.from(document.getElementById(id).rows).map(r => Array.from(r.cells).map(c => c.innerText).join(","));
             const a = document.createElement('a'); a.href = window.URL.createObjectURL(new Blob([rows.join("\n")], {type:'text/csv'}));
-            a.download = 'LSAF_Report.csv'; a.click();
+            a.download = 'LSAF_Export.csv'; a.click();
         }
         function logout() { localStorage.clear(); location.reload(); }
     </script>
